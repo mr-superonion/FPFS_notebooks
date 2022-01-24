@@ -1,80 +1,67 @@
+# shear response of detection
+# Copyright 20220123 Xiangchong Li.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
+# see <http://www.lsstcorp.org/LegalNotices/>.
+#
+# python lib
+
+import sys
+sys.path.insert(1, '../run/')
+import pdet
 import numpy as np
 import astropy.io.fits as pyfits
 from fpfs import simutil
-from fpfs.imgutil import gauss_kernel
 
 
-def test_knownref(ishear=1):
-    """
-    Testing the pixel resopnse with known referencve point
-    Parameters:
-        ishear
-    """
-    ngal    =   1
-    ngrid   =   64
-    ngrid2  =   ngrid*ngal
-    img1    =   simutil.make_basic_sim('basic_psf60','g%d-0000'%ishear,0,\
+def test_centerref(ishear=1):
+	"""
+	Testing the pixel resopnse with referencve point set to galaxy center
+	Parameters:
+		ishear
+	"""
+	ngrid   =   64
+	ngal    =   10
+	img1    =   simutil.make_basic_sim('basicCenter_psf60','g%d-0000' %ishear,0,\
                 ny=ngal,nx=ngal,do_write=False)
-    img2    =   simutil.make_basic_sim('basic_psf60','g%d-2222'%ishear,0,\
+	img2    =   simutil.make_basic_sim('basicCenter_psf60','g%d-2222' %ishear,0,\
                 ny=ngal,nx=ngal,do_write=False)
+	ngrid2  =   ngrid*ngal
+	# PSF
+	psf     =   pyfits.getdata('psf-60.fits')
+	npad    =   (ngrid2-psf.shape[0])//2
+	psfData =   np.pad(psf,(npad+1,npad),mode='constant')
+	assert psfData.shape[0]==ngrid2
+	gsigma  =   6.*2.*np.pi/64
 
-    # PSF
-    psf     =   pyfits.getdata('psf-60.fits')
-    npad    =   (ngrid2-psf.shape[0])//2
-    psfData =   np.pad(psf,(npad+1,npad),mode='constant')
-    assert psfData.shape[0]==ngrid2
-    psfF    =   np.fft.fft2(np.fft.ifftshift(psfData))
-    gsigma  =   3.*2.*np.pi/64
+	indX    =   np.arange(32,ngal*64,64)
+	indY    =   np.arange(32,ngal*64,64)
+	inds    =   np.meshgrid(indY,indX,indexing='ij')
+	coords  = np.array(np.zeros(inds[0].size),dtype=[('pdet_y','i4'),('pdet_x','i4')])
+	coords['pdet_y']=   np.ravel(inds[0])
+	coords['pdet_x']=   np.ravel(inds[1])
 
-    gKer,grids=gauss_kernel(ngrid2,ngrid2,gsigma,return_grid=True)
-    k2grid,k1grid=grids
-
-    imgF1   =   np.fft.fft2(img1)/psfF*gKer
-    imgFQA1 =   imgF1*(k1grid**2.-k2grid**2.)/gsigma**2.
-    imgFQB1 =   imgF1*(2.*k1grid*k2grid)/gsigma**2.
-    imgFDA1 =   imgF1*(-1j*k1grid)
-    imgFDB1 =   imgF1*(-1j*k2grid)
-
-    imgF2   =   np.fft.fft2(img2)/psfF*gKer
-    imgFQA2 =   imgF2*(k1grid**2.-k2grid**2.)/gsigma**2.
-    imgFQB2 =   imgF2*(2.*k1grid*k2grid)/gsigma**2.
-    imgFDA2 =   imgF2*(-1j*k1grid)
-    imgFDB2 =   imgF2*(-1j*k2grid)
-
-    imgCov1 =   np.fft.ifft2(imgF1).real
-    imgCovQA1=  np.fft.ifft2(imgFQA1).real
-    imgCovQB1=  np.fft.ifft2(imgFQB1).real
-    imgCovDA1=  np.fft.ifft2(imgFDA1).real
-    imgCovDB1=  np.fft.ifft2(imgFDB1).real
-
-    imgCov2 =   np.fft.ifft2(imgF2).real
-    imgCovQA2=  np.fft.ifft2(imgFQA2).real
-    imgCovQB2=  np.fft.ifft2(imgFQB2).real
-    imgCovDA2=  np.fft.ifft2(imgFDA2).real
-    imgCovDB2=  np.fft.ifft2(imgFDB2).real
-
-    ind1    =   (32,32)
-    ind2    =   (32,32)
-
-    if ishear==1:
-        res1    =   imgCovQA1[ind1]+0.5*imgCovDA1[ind1]-0.5*imgCovDB1[ind1]
-        res2    =   imgCovQA2[ind2]+0.5*imgCovDA2[ind2]-0.5*imgCovDB2[ind2]
-        meas1   =   imgCov1[ind1]
-        meas2   =   imgCov2[ind2]
-    elif ishear==2:
-        res1    =   imgCovQB1[ind1]+0.5*imgCovDA1[ind1]+0.5*imgCovDB1[ind1]
-        res2    =   imgCovQB2[ind2]+0.5*imgCovDA2[ind2]+0.5*imgCovDB2[ind2]
-        meas1   =   imgCov1[ind1]
-        meas2   =   imgCov2[ind2]
-    else:
-        raise(ValueError('ishear should be either 1 or 2'))
-
-    response=   np.average((res1+res2)/2.)
-    resEst  =   np.average((meas2-meas1)/0.04)
-    out     =   np.abs((response-resEst)/response)
-    np.testing.assert_almost_equal(out, 0, 2)
-    return
+	out1=pdet.get_shear_response(img1,psfData,gsigma=gsigma,coords=coords)
+	out2=pdet.get_shear_response(img2,psfData,gsigma=gsigma,coords=coords)
+	for j in range(1,4):
+		for i in range(1,4):
+			resEst 	= 	(out2['pdet_v%d%d' %(j,i)]-out1['pdet_v%d%d'%(j,i)])/0.04
+			res 	= 	(out2['pdet_v%d%dr%d'%(j,i,ishear)]+out1['pdet_v%d%dr%d'%(j,i,ishear)])/2.
+			_ 		= 	np.average((res-resEst)/np.abs(resEst))
+			np.testing.assert_almost_equal(_,0,3)
+	return
 
 if __name__ == '__main__':
-    test_knownref(1)
-    test_knownref(2)
+    test_centerref(1)
+    test_centerref(2)
