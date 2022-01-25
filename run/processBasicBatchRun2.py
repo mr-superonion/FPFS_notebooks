@@ -1,3 +1,3 @@
 #!/usr/bin/env python
-from processBasic import processBasicDriverTask
+from processBasic2 import processBasicDriverTask
 processBasicDriverTask.parseAndSubmit()

@@ -17,8 +17,6 @@
 #
 # python lib
 
-import sys
-sys.path.insert(1, '../run/')
 import pdet
 import numpy as np
 import astropy.io.fits as pyfits
