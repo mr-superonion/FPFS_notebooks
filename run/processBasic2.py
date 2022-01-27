@@ -23,6 +23,7 @@
 # python lib
 import os
 import gc
+import psutil
 import numpy as np
 from fpfs import simutil
 from fpfs import fpfsBase
@@ -209,6 +210,7 @@ class processBasicDriverTask(BatchPoolTask):
 
             outFname    =   os.path.join(cache.outDir,'src-%04d-%s.fits' %(ifield,ishear))
             if not os.path.exists(outFname) and cache.doHSM:
+                self.log.info('HSM measurement: %04d, %s' %(ifield,ishear))
                 exposure=   simutil.makeHSCExposure(galData,psfData,pixScale,noiVar)
                 src     =   self.readDataSim.measureSource(exposure)
                 wFlag   =   afwTable.SOURCE_IO_NO_FOOTPRINTS
@@ -216,10 +218,12 @@ class processBasicDriverTask(BatchPoolTask):
                 del exposure,src
                 gc.collect()
             else:
-                self.log.info('Skipping HSM measurement: %04d, %s' %(ifield,ishear))
+                self.log.info('Skip HSM measurement: %04d, %s' %(ifield,ishear))
+            self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
 
             outFname    =   os.path.join(cache.outDir,'fpfs-cut%d-%04d-%s.fits' %(rcut,ifield,ishear))
             if not os.path.exists(outFname) and cache.doFPFS:
+                self.log.info('FPFS measurement: %04d, %s' %(ifield,ishear))
                 if 'basicCenter' in galDir:
                     indX    =   np.arange(32,ngrid2,64)
                     indY    =   np.arange(32,ngrid2,64)
@@ -227,6 +231,7 @@ class processBasicDriverTask(BatchPoolTask):
                     coords  =   np.array(np.zeros(inds[0].size),dtype=[('pdet_y','i4'),('pdet_x','i4')])
                     coords['pdet_y']=   np.ravel(inds[0])
                     coords['pdet_x']=   np.ravel(inds[1])
+                    del indX,indY,inds
                 else:
                     coords  =   []
                     pass
@@ -240,7 +245,8 @@ class processBasicDriverTask(BatchPoolTask):
                 del out,imgList,coords,out1
                 gc.collect()
             else:
-                self.log.info('Skipping FPFS measurement: %04d, %s' %(ifield,ishear))
+                self.log.info('Skip FPFS measurement: %04d, %s' %(ifield,ishear))
+            self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
 
             del galData,outFname
             gc.collect()
