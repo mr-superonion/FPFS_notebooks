@@ -30,12 +30,25 @@ _do_test=False
 if _do_test:
     import psutil
 
-def try_numba_njit():
+def try_numba_njit(func):
     try:
         import numba
-        return numba.njit
+        return numba.njit(func)
     except ImportError:
-        return lambda func: func
+        return func
+
+@try_numba_njit
+def test_numba_njit(n):
+    out=0
+    for _ in range(n):
+        out+=1
+    return out
+
+def test_numba(n):
+    out=0
+    for _ in range(n):
+        out+=1
+    return out
 
 def detect_coords(imgCov,thres):
     """
@@ -120,25 +133,7 @@ def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,separate=True,thres=
                 ('pdet_v21r2','f8'), ('pdet_v22r2','f8'),('pdet_v23r2','f8'),\
                 ('pdet_v31r2','f8'), ('pdet_v32r2','f8'),('pdet_v33r2','f8')]
     types   =   types+nn
-
-    out     =   np.array(np.zeros(coords.size),dtype=types)
-    for _j in range(1,4):
-        for _i in range(1,4):
-            # the smoothed pixel value
-            _y  = coords['pdet_y']+_j-2
-            _x  = coords['pdet_x']+_i-2
-            _v  = imgCov[_y,_x]
-            out['pdet_v%d%d' %(_j,_i)]=_v
-            # responses for the smoothed pixel value
-            _r1 = imgCovQ1[_y,_x]+(_i-2.)*imgCovD1[_y,_x]-(_j-2.)*imgCovD2[_y,_x]
-            _r2 = imgCovQ2[_y,_x]+(_j-2.)*imgCovD1[_y,_x]+(_i-2.)*imgCovD2[_y,_x]
-            if not separate:
-                out['pdet_v%d%dr' %(_j,_i)]=(_r1+_r2)/2.
-            else:
-                out['pdet_v%d%dr1' %(_j,_i)]=_r1
-                out['pdet_v%d%dr2' %(_j,_i)]=_r2
-    out     =   rfn.merge_arrays([coords,out], flatten = True, usemask = False)
-    return out
+    return create_peak_array(coords,types,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2,separate)
 
 def get_shear_response_rfft(imgData,psfData,gsigma=3.*2*np.pi/64,separate=True,thres=0.01,coords=None):
     """
@@ -204,7 +199,6 @@ def get_shear_response_rfft(imgData,psfData,gsigma=3.*2*np.pi/64,separate=True,t
                 ('pdet_v21r2','f8'), ('pdet_v22r2','f8'),('pdet_v23r2','f8'),\
                 ('pdet_v31r2','f8'), ('pdet_v32r2','f8'),('pdet_v33r2','f8')]
     types   =   types+nn
-
     return create_peak_array(coords,types,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2,separate)
 
 def create_peak_array(coords,types,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2,separate):
