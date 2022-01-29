@@ -50,13 +50,11 @@ def test_centerref(ishear=1):
     coords['pdet_y']=   np.ravel(inds[0])
     coords['pdet_x']=   np.ravel(inds[1])
 
-    out1=pdet.get_shear_response(img1,psfData,gsigma=gsigma,coords=coords)
-    out2=pdet.get_shear_response(img2,psfData,gsigma=gsigma,coords=coords)
+    out1=pdet.get_shear_response_rfft(img1,psfData,gsigma=gsigma,coords=coords)
+    out2=pdet.get_shear_response_rfft(img2,psfData,gsigma=gsigma,coords=coords)
     for j in range(1,4):
         for i in range(1,4):
             resEst 	= 	(out2['pdet_v%d%d' %(j,i)]-out1['pdet_v%d%d'%(j,i)])/0.04
-            if i==2 and j==2:
-                print(resEst)
             res 	= 	(out2['pdet_v%d%dr%d'%(j,i,ishear)]+out1['pdet_v%d%dr%d'%(j,i,ishear)])/2.
             _ 		= 	np.average((res-resEst)/np.abs(resEst))
             np.testing.assert_almost_equal(_,0,3)
