@@ -23,7 +23,7 @@
 # python lib
 import os
 import gc
-import psutil
+# import psutil
 import numpy as np
 from fpfs import simutil
 from fpfs import fpfsBase
@@ -63,12 +63,17 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     noiName     = pexConfig.Field(
         dtype=str,
-        default="var0em0",#"var7em3",
+        default="var4em3",#"var7em3",
         doc="noise variance name"
     )
-    outDir     = pexConfig.Field(
+    inDir       = pexConfig.Field(
         dtype=str,
-        default="",
+        default="./",
+        doc="input directory"
+    )
+    outDir      = pexConfig.Field(
+        dtype=str,
+        default="./",
         doc="output directory"
     )
 
@@ -78,20 +83,15 @@ class processBasicDriverConfig(pexConfig.Config):
         self.readDataSim.doDeblend= True
         self.readDataSim.doAddFP=   False
         psfFWHM =   self.galDir.split('_psf')[-1]
-        if 'small' in self.galDir:
-            irr     =   eval(self.galDir.split('_psf')[0].split('small')[-1])
-            gnm     =   'Small%d' %irr
-        elif 'star' in self.galDir:
-            gnm     =   'Star'
-        else:
-            gnm     =   'Basic'
-        self.outDir  =   os.path.join('out%s-%s' %(gnm,self.noiName),'psf%s'%(psfFWHM))
+        gnm     =   self.galDir.split('galaxy_')[-1].split('_psf')[0]
+        self.outDir  =  os.path.join(self.outDir,'src_%s-%s' %(gnm,self.noiName),'psf%s'%(psfFWHM))
+        self.galDir  =  os.path.join(self.inDir,self.galDir)
 
     def validate(self):
-        assert os.path.exists('noise')
+        assert os.path.exists(os.path.join(self.inDir,'noise'))
         assert os.path.exists(self.galDir)
         if not os.path.isdir(self.outDir):
-            os.mkdir(self.outDir)
+            os.makedirs(self.outDir)
 
 class processBasicRunner(TaskRunner):
     @staticmethod
@@ -177,14 +177,16 @@ class processBasicDriverTask(BatchPoolTask):
         # FPFS Task
         if "var0em0" not in cache.outDir:
             # noise
-            noiVar      =   7e-3
+            _tmp        =   cache.outDir.split('var')[-1]
+            noiVar      =   eval(_tmp[0])*10**(-1.*eval(_tmp[3]))
+            self.log.info('noisy setup with variance: %.3f' %noiVar)
             noiFname    =   os.path.join('noise','noi%04d.fits' %ifield)
             if not os.path.isfile(noiFname):
                 self.log.info('Cannot find input noise file: %s' %noiFname)
                 return
             # multiply by 10 since the noise has variance 0.01
-            noiData     =   pyfits.open(noiFname)[0].data*10.
-            # same for the noivar model
+            noiData     =   pyfits.open(noiFname)[0].data*10.*np.sqrt(noiVar)
+            # Also times 100 for the noivar model
             powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
             powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
             powModel[0] =   powIn
@@ -206,7 +208,7 @@ class processBasicDriverTask(BatchPoolTask):
                 return
             galData     =   pyfits.getdata(galFname)
             if noiData is not None:
-                galData =   galData+noiData*np.sqrt(noiVar)
+                galData =   galData+noiData
 
             outFname    =   os.path.join(cache.outDir,'src-%04d-%s.fits' %(ifield,ishear))
             if not os.path.exists(outFname) and cache.doHSM:
@@ -219,7 +221,7 @@ class processBasicDriverTask(BatchPoolTask):
                 gc.collect()
             else:
                 self.log.info('Skip HSM measurement: %04d, %s' %(ifield,ishear))
-            self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
+            # self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
 
             outFname    =   os.path.join(cache.outDir,'fpfs-cut%d-%04d-%s.fits' %(rcut,ifield,ishear))
             if not os.path.exists(outFname) and cache.doFPFS:
@@ -234,19 +236,20 @@ class processBasicDriverTask(BatchPoolTask):
                     del indX,indY,inds
                 else:
                     coords  =   []
-                    pass
                 imgList =   [galData[cc['pdet_y']-rcut:cc['pdet_y']+rcut,\
                             cc['pdet_x']-rcut:cc['pdet_x']+rcut] for cc in coords]
                 out     =   fpTask.measure(imgList)
+                del imgList
+                gc.collect()
                 out1    =   pdet.get_shear_response(galData,psfData3,gsigma=gsigma,\
                             coords=coords)
                 out     =   rfn.merge_arrays([out,out1],flatten=True,usemask=False)
                 pyfits.writeto(outFname,out)
-                del out,imgList,coords,out1
+                del out,coords,out1
                 gc.collect()
             else:
                 self.log.info('Skip FPFS measurement: %04d, %s' %(ifield,ishear))
-            self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
+            # self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
 
             del galData,outFname
             gc.collect()
