@@ -20,6 +20,7 @@
 # python lib
 
 import gc
+import logging
 import numpy as np
 import scipy.ndimage as ndi
 import numpy.lib.recfunctions as rfn
@@ -27,6 +28,7 @@ import numpy.lib.recfunctions as rfn
 from fpfs.imgutil import gauss_kernel
 
 _do_test=False
+_simple_detect=False
 if _do_test:
     import psutil
 
@@ -50,6 +52,45 @@ def test_numba(n):
         out+=1
     return out
 
+if not _simple_detect:
+    logging.info('pdet uses 8 neighboring pixels for detection.')
+    _default_inds=[(_j,_i) for _j in range(1,4) for _i in range(1,4)]
+    _peak_types=[('pdet_v11','f8'),('pdet_v12','f8'), ('pdet_v13','f8'),\
+                ('pdet_v21','f8'), ('pdet_v22','f8'), ('pdet_v23','f8'),\
+                ('pdet_v31','f8'), ('pdet_v32','f8'), ('pdet_v33','f8'),\
+                ('pdet_v11r1','f8'), ('pdet_v12r1','f8'),('pdet_v13r1','f8'),\
+                ('pdet_v21r1','f8'), ('pdet_v22r1','f8'),('pdet_v23r1','f8'),\
+                ('pdet_v31r1','f8'), ('pdet_v32r1','f8'),('pdet_v33r1','f8'),\
+                ('pdet_v11r2','f8'), ('pdet_v12r2','f8'),('pdet_v13r2','f8'),\
+                ('pdet_v21r2','f8'), ('pdet_v22r2','f8'),('pdet_v23r2','f8'),\
+                ('pdet_v31r2','f8'), ('pdet_v32r2','f8'),('pdet_v33r2','f8')]
+    _pdet_types=[('pdet_y','i4'),  ('pdet_x','i4'),\
+                ('pdet_f11','f8'),('pdet_f12','f8'), ('pdet_f13','f8'),\
+                ('pdet_f21','f8'), ('pdet_f22','f8'), ('pdet_f23','f8'),\
+                ('pdet_f31','f8'), ('pdet_f32','f8'), ('pdet_f33','f8'),\
+                ('pdet_f11r1','f8'), ('pdet_f12r1','f8'),('pdet_f13r1','f8'),\
+                ('pdet_f21r1','f8'), ('pdet_f22r1','f8'),('pdet_f23r1','f8'),\
+                ('pdet_f31r1','f8'), ('pdet_f32r1','f8'),('pdet_f33r1','f8'),\
+                ('pdet_f11r2','f8'), ('pdet_f12r2','f8'),('pdet_f13r2','f8'),\
+                ('pdet_f21r2','f8'), ('pdet_f22r2','f8'),('pdet_f23r2','f8'),\
+                ('pdet_f31r2','f8'), ('pdet_f32r2','f8'),('pdet_f33r2','f8')]
+else:
+    logging.info('pdet uses 4 neighboring pixels for detection.')
+    _default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
+    _peak_types=[('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
+                ('pdet_v23','f8'),  ('pdet_v32','f8'),\
+                ('pdet_v12r1','f8'),('pdet_v21r1','f8'),('pdet_v22r1','f8'),\
+                ('pdet_v23r1','f8'),('pdet_v32r1','f8'),\
+                ('pdet_v12r2','f8'),('pdet_v21r2','f8'),('pdet_v22r2','f8'),\
+                ('pdet_v23r2','f8'),('pdet_v32r2','f8')]
+    _pdet_types=[('pdet_y','i4'),  ('pdet_x','i4'), \
+                ('pdet_f12','f8'), ('pdet_f21','f8'),  ('pdet_f22','f8'),\
+                ('pdet_f23','f8'),  ('pdet_f32','f8'),\
+                ('pdet_f12r1','f8'),('pdet_f21r1','f8'),('pdet_f22r1','f8'),\
+                ('pdet_f23r1','f8'),('pdet_f32r1','f8'),\
+                ('pdet_f12r2','f8'),('pdet_f21r2','f8'),('pdet_f22r2','f8'),\
+                ('pdet_f23r2','f8'),('pdet_f32r2','f8')]
+
 def detect_coords(imgCov,thres):
     """
     detect peaks and return the coordinates (y,x)
@@ -59,25 +100,28 @@ def detect_coords(imgCov,thres):
     Returns:
         ndarray of coordinates (y,x)
     """
-    npixt = 1
-    sizet = 1 + 2 * npixt
-    footprint = np.ones((sizet, sizet))
-    footprint[npixt, npixt] = 0
+    footprint = np.ones((3, 3))
+    footprint[1, 1] = 0
+    if _simple_detect:
+        footprint[0, 0] = 0
+        footprint[0, 2] = 0
+        footprint[2, 2] = 0
+        footprint[2, 0] = 0
     filtered  = ndi.maximum_filter(imgCov,footprint=footprint,mode='constant')
     data  = np.int_(np.asarray(np.where(((imgCov > filtered)&(imgCov>thres)))))
-    out   = np.array(np.zeros(data.size//2),dtype=[('pdet_y','u2'),('pdet_x','u2')])
+    out   = np.array(np.zeros(data.size//2),dtype=[('pdet_y','i4'),('pdet_x','i4')])
     out['pdet_y']=data[0]
     out['pdet_x']=data[1]
-    return out
+    msk= (out['pdet_y']>20)&(out['pdet_y']<6380)&(out['pdet_x']>20)&(out['pdet_x']<6380)
+    return out[msk]
 
-def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,separate=True,thres=0.01,coords=None):
+def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coords=None):
     """
     Get the shear response for pixels identified as peaks
     Parameters:
         imgData:    observed image [ndarray]
         psfData:    PSF image (the average PSF of the exposure) [ndarray]
         gsigma:     sigma of the Gaussian smoothing kernel [float]
-        separate:   whether separate responses for two shear component [bool]
         thres:      detection threshold
     Returns:
         peak values and the shear responses
@@ -114,28 +158,12 @@ def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,separate=True,thres=
         print('used memory: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
 
     if coords is None:
-        if type(thres) is not float:
-            raise ValueError('If coords is none, thres must be float')
+        if not isinstance(thres,(int, np.floating)):
+            raise ValueError('thres must be float, but now got %s' %type(thres))
         coords  =   detect_coords(imgCov,thres)
+    return _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
 
-    types   =   [('pdet_v11','f8'),('pdet_v12','f8'), ('pdet_v13','f8'),\
-                ('pdet_v21','f8'), ('pdet_v22','f8'), ('pdet_v23','f8'),\
-                ('pdet_v31','f8'), ('pdet_v32','f8'), ('pdet_v33','f8')]
-    if not separate:
-        nn  =   [('pdet_v11r','f8'),('pdet_v12r','f8'),('pdet_v13r','f8'),\
-                ('pdet_v21r','f8'), ('pdet_v22r','f8'),('pdet_v23r','f8'),\
-                ('pdet_v31r','f8'), ('pdet_v32r','f8'),('pdet_v33r','f8')]
-    else:
-        nn  =   [('pdet_v11r1','f8'),('pdet_v12r1','f8'),('pdet_v13r1','f8'),\
-                ('pdet_v21r1','f8'), ('pdet_v22r1','f8'),('pdet_v23r1','f8'),\
-                ('pdet_v31r1','f8'), ('pdet_v32r1','f8'),('pdet_v33r1','f8'),\
-                ('pdet_v11r2','f8'), ('pdet_v12r2','f8'),('pdet_v13r2','f8'),\
-                ('pdet_v21r2','f8'), ('pdet_v22r2','f8'),('pdet_v23r2','f8'),\
-                ('pdet_v31r2','f8'), ('pdet_v32r2','f8'),('pdet_v33r2','f8')]
-    types   =   types+nn
-    return create_peak_array(coords,types,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2,separate)
-
-def get_shear_response_rfft(imgData,psfData,gsigma=3.*2*np.pi/64,separate=True,thres=0.01,coords=None):
+def get_shear_response_rfft(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coords=None):
     """
     Get the shear response for pixels identified as peaks.
     This fucntion ueses np.fft.rfft2 instead of np.fft.fft2
@@ -144,7 +172,6 @@ def get_shear_response_rfft(imgData,psfData,gsigma=3.*2*np.pi/64,separate=True,t
         imgData:    observed image [ndarray]
         psfData:    PSF image (the average PSF of the exposure) [ndarray]
         gsigma:     sigma of the Gaussian smoothing kernel [float]
-        separate:   whether separate responses for two shear component [bool]
         thres:      detection threshold
     Returns:
         peak values and the shear responses
@@ -180,46 +207,82 @@ def get_shear_response_rfft(imgData,psfData,gsigma=3.*2*np.pi/64,separate=True,t
 
 
     if coords is None:
-        if type(thres) is not float:
-            raise ValueError('If coords is none, thres must be float')
+        if not isinstance(thres,(int, np.floating)):
+            raise ValueError('thres must be float, but now got %s' %type(thres))
         coords  =   detect_coords(imgCov,thres)
 
-    types   =   [('pdet_v11','f8'),('pdet_v12','f8'), ('pdet_v13','f8'),\
-                ('pdet_v21','f8'), ('pdet_v22','f8'), ('pdet_v23','f8'),\
-                ('pdet_v31','f8'), ('pdet_v32','f8'), ('pdet_v33','f8')]
-    if not separate:
-        nn  =   [('pdet_v11r','f8'),('pdet_v12r','f8'),('pdet_v13r','f8'),\
-                ('pdet_v21r','f8'), ('pdet_v22r','f8'),('pdet_v23r','f8'),\
-                ('pdet_v31r','f8'), ('pdet_v32r','f8'),('pdet_v33r','f8')]
-    else:
-        nn  =   [('pdet_v11r1','f8'),('pdet_v12r1','f8'),('pdet_v13r1','f8'),\
-                ('pdet_v21r1','f8'), ('pdet_v22r1','f8'),('pdet_v23r1','f8'),\
-                ('pdet_v31r1','f8'), ('pdet_v32r1','f8'),('pdet_v33r1','f8'),\
-                ('pdet_v11r2','f8'), ('pdet_v12r2','f8'),('pdet_v13r2','f8'),\
-                ('pdet_v21r2','f8'), ('pdet_v22r2','f8'),('pdet_v23r2','f8'),\
-                ('pdet_v31r2','f8'), ('pdet_v32r2','f8'),('pdet_v33r2','f8')]
-    types   =   types+nn
-    return create_peak_array(coords,types,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2,separate)
+    return _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
 
-def create_peak_array(coords,types,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2,separate):
-    out     =   np.array(np.zeros(coords.size),dtype=types)
-    for _j in range(1,4):
-        for _i in range(1,4):
-            # the smoothed pixel value
-            _y  = coords['pdet_y']+_j-2
-            _x  = coords['pdet_x']+_i-2
-            _v  = imgCov[_y,_x]
-            out['pdet_v%d%d' %(_j,_i)]=_v
-            # responses for the smoothed pixel value
-            _r1 = imgCovQ1[_y,_x]+(_i-2.)*imgCovD1[_y,_x]-(_j-2.)*imgCovD2[_y,_x]
-            _r2 = imgCovQ2[_y,_x]+(_j-2.)*imgCovD1[_y,_x]+(_i-2.)*imgCovD2[_y,_x]
-            if not separate:
-                out['pdet_v%d%dr' %(_j,_i)]=(_r1+_r2)/2.
-            else:
-                out['pdet_v%d%dr1' %(_j,_i)]=_r1
-                out['pdet_v%d%dr2' %(_j,_i)]=_r2
+def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
+    out     =   np.array(np.zeros(coords.size),dtype=_peak_types)
+    for _j,_i in _default_inds:
+        # the smoothed pixel value
+        _y  = coords['pdet_y']+_j-2
+        _x  = coords['pdet_x']+_i-2
+        _v  = imgCov[_y,_x]
+        out['pdet_v%d%d' %(_j,_i)]=_v
+        # responses for the smoothed pixel value
+        _r1 = imgCovQ1[_y,_x]+(_i-2.)*imgCovD1[_y,_x]-(_j-2.)*imgCovD2[_y,_x]
+        _r2 = imgCovQ2[_y,_x]+(_j-2.)*imgCovD1[_y,_x]+(_i-2.)*imgCovD2[_y,_x]
+        out['pdet_v%d%dr1' %(_j,_i)]=_r1
+        out['pdet_v%d%dr2' %(_j,_i)]=_r2
     out     =   rfn.merge_arrays([coords,out], flatten = True, usemask = False)
     return out
+
+def make_detection_array(peaks,ells):
+    out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types)
+    out['pdet_y']  = peaks['pdet_y']
+    out['pdet_x']  = peaks['pdet_x']
+    cnmv0  =   'pdet_v22'
+    cnmr10 =   'pdet_v22r1'
+    cnmr20 =   'pdet_v22r2'
+    for ind in _default_inds:
+        cnmv ='pdet_v%d%d'  %ind
+        cnmr1='pdet_v%d%dr1'%ind
+        cnmr2='pdet_v%d%dr2'%ind
+        fnmv ='pdet_f%d%d'  %ind
+        fnmr1='pdet_f%d%dr1'%ind
+        fnmr2='pdet_f%d%dr2'%ind
+        if ind  !=  (2,2):
+            out[fnmv] = peaks[cnmv0]-peaks[cnmv]
+            out[fnmr1]= peaks[cnmr10]-peaks[cnmr1]
+            out[fnmr2]= peaks[cnmr20]-peaks[cnmr2]
+        else:
+            out[fnmv] = peaks[cnmv]
+            out[fnmr1]= peaks[cnmr1]
+            out[fnmr2]= peaks[cnmr2]
+        if ells is not None:
+            out[fnmr1]= out[fnmr1]*ells['fpfs_e1']
+            out[fnmr2]= out[fnmr2]*ells['fpfs_e2']
+    return out
+
+def get_detbias(dets,cut,dcc,inds=_default_inds,dcutz=True):
+    """
+    Parameters:
+        dets: 	    detection array
+        cut:        selection cut
+        dcc:        bin size when estimating marginal density
+        inds:       shifting indexes
+    """
+    if not isinstance(inds,list):
+        if isinstance(inds,tuple):
+            inds=[inds]
+        else:
+            raise TypeError('inds should be a list of tuple or a tuple')
+    cor1 =0.
+    cor2 =0.
+    for ind in inds:
+        fnmv ='pdet_f%d%d'  %ind
+        fnmr1='pdet_f%d%dr1'%ind
+        fnmr2='pdet_f%d%dr2'%ind
+        ll=cut;uu=cut+dcc
+        if ind!=(2,2) and dcutz:
+            ll=0.;uu=dcc
+        msk=(dets[fnmv]>ll)&(dets[fnmv]<uu)
+        if np.sum(msk)>2:
+            cor1=cor1+np.sum(dets[fnmr1][msk])/dcc
+            cor2=cor2+np.sum(dets[fnmr2][msk])/dcc
+    return cor1,cor2
 
 def detbias(sel,selresEll,cut,dcc):
     """
@@ -229,9 +292,10 @@ def detbias(sel,selresEll,cut,dcc):
         cut:        selection cut
         dcc:        bin size when estimating marginal density
     """
-    msks1=(sel>cut)&(sel<cut+dcc)
-    if np.sum(msks1)==0:
+    msk=(sel>cut)&(sel<cut+dcc)
+    if np.sum(msk)==0:
         cor=0.
     else:
-        cor=np.sum(selresEll[msks1])/dcc
+        cor=np.sum(selresEll[msk])/dcc
     return cor
+

@@ -222,11 +222,12 @@ class processBasicDriverTask(BatchPoolTask):
             else:
                 self.log.info('Skip HSM measurement: %04d, %s' %(ifield,ishear))
             # self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
-
-            outFname    =   os.path.join(cache.outDir,'fpfs-cut%d-%04d-%s.fits' %(rcut,ifield,ishear))
+            # pp  =   'cut%d' %rcut
+            pp  =   'det2'
+            outFname    =   os.path.join(cache.outDir,'fpfs-%s-%04d-%s.fits' %(pp,ifield,ishear))
             if not os.path.exists(outFname) and cache.doFPFS:
                 self.log.info('FPFS measurement: %04d, %s' %(ifield,ishear))
-                if 'basicCenter' in galDir:
+                if 'basicCenter' in galDir and 'det' not in pp:
                     indX    =   np.arange(32,ngrid2,64)
                     indY    =   np.arange(32,ngrid2,64)
                     inds    =   np.meshgrid(indY,indX,indexing='ij')
@@ -235,17 +236,16 @@ class processBasicDriverTask(BatchPoolTask):
                     coords['pdet_x']=   np.ravel(inds[1])
                     del indX,indY,inds
                 else:
-                    coords  =   []
+                    coords  =   None
+                out1    =   pdet.get_shear_response_rfft(galData,psfData3,gsigma=gsigma,\
+                            coords=coords,thres=np.sqrt(noiVar)*3.5)
+                self.log.info('number of sources: %d' %len(out1))
                 imgList =   [galData[cc['pdet_y']-rcut:cc['pdet_y']+rcut,\
-                            cc['pdet_x']-rcut:cc['pdet_x']+rcut] for cc in coords]
+                            cc['pdet_x']-rcut:cc['pdet_x']+rcut] for cc in out1]
                 out     =   fpTask.measure(imgList)
-                del imgList
-                gc.collect()
-                out1    =   pdet.get_shear_response(galData,psfData3,gsigma=gsigma,\
-                            coords=coords)
                 out     =   rfn.merge_arrays([out,out1],flatten=True,usemask=False)
                 pyfits.writeto(outFname,out)
-                del out,coords,out1
+                del imgList,out,out1
                 gc.collect()
             else:
                 self.log.info('Skip FPFS measurement: %04d, %s' %(ifield,ishear))
