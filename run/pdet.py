@@ -27,10 +27,8 @@ import numpy.lib.recfunctions as rfn
 
 from fpfs.imgutil import gauss_kernel
 
-_do_test=False
 _simple_detect=False
-if _do_test:
-    import psutil
+_gsigma=3.*2*np.pi/64.
 
 def try_numba_njit(func):
     try:
@@ -112,7 +110,9 @@ def detect_coords(imgCov,thres):
     out   = np.array(np.zeros(data.size//2),dtype=[('pdet_y','i4'),('pdet_x','i4')])
     out['pdet_y']=data[0]
     out['pdet_x']=data[1]
-    msk= (out['pdet_y']>20)&(out['pdet_y']<6380)&(out['pdet_x']>20)&(out['pdet_x']<6380)
+    ny,nx = imgCov.shape
+    msk   = (out['pdet_y']>20)&(out['pdet_y']<ny-20)\
+                &(out['pdet_x']>20)&(out['pdet_x']<nx-20)
     return out[msk]
 
 def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coords=None):
@@ -150,12 +150,8 @@ def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coords=No
     imgFD2  =   imgF*(-1j*k2grid)
     imgCovD1=   np.fft.ifft2(imgFD1).real
     imgCovD2=   np.fft.ifft2(imgFD2).real
-    if _do_test:
-        print('used memory: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
     del imgFD1,imgFD2,imgF,k1grid,k2grid # these images take a lot of memory
     gc.collect()
-    if _do_test:
-        print('used memory: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
 
     if coords is None:
         if not isinstance(thres,(int, np.floating)):
@@ -163,7 +159,7 @@ def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coords=No
         coords  =   detect_coords(imgCov,thres)
     return _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
 
-def get_shear_response_rfft(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coords=None):
+def get_shear_response_rfft(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=None):
     """
     Get the shear response for pixels identified as peaks.
     This fucntion ueses np.fft.rfft2 instead of np.fft.fft2
@@ -171,7 +167,7 @@ def get_shear_response_rfft(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coor
     Parameters:
         imgData:    observed image [ndarray]
         psfData:    PSF image (the average PSF of the exposure) [ndarray]
-        gsigma:     sigma of the Gaussian smoothing kernel [float]
+        gsigma:     sigma of the Gaussian smoothing kernel in Fourier space [float]
         thres:      detection threshold
     Returns:
         peak values and the shear responses
@@ -198,20 +194,16 @@ def get_shear_response_rfft(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coor
     imgFD2  =   imgF*(-1j*k2grid)
     imgCovD1=   np.fft.irfft2(imgFD1,(ny,nx))
     imgCovD2=   np.fft.irfft2(imgFD2,(ny,nx))
-    if _do_test:
-        print('used memory: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
     del imgFD1,imgFD2,imgF,k1grid,k2grid # these images take a lot of memory
     gc.collect()
-    if _do_test:
-        print('used memory: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
-
 
     if coords is None:
-        if not isinstance(thres,(int, np.floating)):
+        if not isinstance(thres,(int, float)):
             raise ValueError('thres must be float, but now got %s' %type(thres))
         coords  =   detect_coords(imgCov,thres)
+    peak_array  =   _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
 
-    return _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
+    return peak_array
 
 def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
     out     =   np.array(np.zeros(coords.size),dtype=_peak_types)
@@ -298,4 +290,3 @@ def detbias(sel,selresEll,cut,dcc):
     else:
         cor=np.sum(selresEll[msk])/dcc
     return cor
-
