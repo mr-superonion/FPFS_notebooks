@@ -120,7 +120,7 @@ def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coords=No
     Get the shear response for pixels identified as peaks
     Parameters:
         imgData:    observed image [ndarray]
-        psfData:    PSF image (the average PSF of the exposure) [ndarray]
+        psfData:    PSF image center at middle [ndarray]
         gsigma:     sigma of the Gaussian smoothing kernel [float]
         thres:      detection threshold
     Returns:
