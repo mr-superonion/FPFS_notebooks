@@ -54,17 +54,7 @@ if not _simple_detect:
     logging.info('pdet uses 8 neighboring pixels for detection.')
     # 3x3 pixels
     _default_inds=[(_j,_i) for _j in range(1,4) for _i in range(1,4)]
-    _peak_types=[('pdet_v11','f8'),('pdet_v12','f8'), ('pdet_v13','f8'),\
-                ('pdet_v21','f8'), ('pdet_v22','f8'), ('pdet_v23','f8'),\
-                ('pdet_v31','f8'), ('pdet_v32','f8'), ('pdet_v33','f8'),\
-                ('pdet_v11r1','f8'), ('pdet_v12r1','f8'),('pdet_v13r1','f8'),\
-                ('pdet_v21r1','f8'), ('pdet_v22r1','f8'),('pdet_v23r1','f8'),\
-                ('pdet_v31r1','f8'), ('pdet_v32r1','f8'),('pdet_v33r1','f8'),\
-                ('pdet_v11r2','f8'), ('pdet_v12r2','f8'),('pdet_v13r2','f8'),\
-                ('pdet_v21r2','f8'), ('pdet_v22r2','f8'),('pdet_v23r2','f8'),\
-                ('pdet_v31r2','f8'), ('pdet_v32r2','f8'),('pdet_v33r2','f8')]
-    _pdet_types=[('pdet_y','i4'),  ('pdet_x','i4'),\
-                ('pdet_f11','f8'),('pdet_f12','f8'), ('pdet_f13','f8'),\
+    _peak_types=[('pdet_f11','f8'),('pdet_f12','f8'), ('pdet_f13','f8'),\
                 ('pdet_f21','f8'), ('pdet_f22','f8'), ('pdet_f23','f8'),\
                 ('pdet_f31','f8'), ('pdet_f32','f8'), ('pdet_f33','f8'),\
                 ('pdet_f11r1','f8'), ('pdet_f12r1','f8'),('pdet_f13r1','f8'),\
@@ -73,23 +63,33 @@ if not _simple_detect:
                 ('pdet_f11r2','f8'), ('pdet_f12r2','f8'),('pdet_f13r2','f8'),\
                 ('pdet_f21r2','f8'), ('pdet_f22r2','f8'),('pdet_f23r2','f8'),\
                 ('pdet_f31r2','f8'), ('pdet_f32r2','f8'),('pdet_f33r2','f8')]
+    _pdet_types=[('pdet_y','i4'),  ('pdet_x','i4'),\
+                ('pdet_v11','f8'),('pdet_v12','f8'), ('pdet_v13','f8'),\
+                ('pdet_v21','f8'), ('pdet_v22','f8'), ('pdet_v23','f8'),\
+                ('pdet_v31','f8'), ('pdet_v32','f8'), ('pdet_v33','f8'),\
+                ('pdet_v11r1','f8'), ('pdet_v12r1','f8'),('pdet_v13r1','f8'),\
+                ('pdet_v21r1','f8'), ('pdet_v22r1','f8'),('pdet_v23r1','f8'),\
+                ('pdet_v31r1','f8'), ('pdet_v32r1','f8'),('pdet_v33r1','f8'),\
+                ('pdet_v11r2','f8'), ('pdet_v12r2','f8'),('pdet_v13r2','f8'),\
+                ('pdet_v21r2','f8'), ('pdet_v22r2','f8'),('pdet_v23r2','f8'),\
+                ('pdet_v31r2','f8'), ('pdet_v32r2','f8'),('pdet_v33r2','f8')]
 else:
     logging.info('pdet uses 4 neighboring pixels for detection.')
     # 3x3 pixels
     _default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
-    _peak_types=[('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
-                ('pdet_v23','f8'),  ('pdet_v32','f8'),\
-                ('pdet_v12r1','f8'),('pdet_v21r1','f8'),('pdet_v22r1','f8'),\
-                ('pdet_v23r1','f8'),('pdet_v32r1','f8'),\
-                ('pdet_v12r2','f8'),('pdet_v21r2','f8'),('pdet_v22r2','f8'),\
-                ('pdet_v23r2','f8'),('pdet_v32r2','f8')]
-    _pdet_types=[('pdet_y','i4'),  ('pdet_x','i4'), \
-                ('pdet_f12','f8'), ('pdet_f21','f8'),  ('pdet_f22','f8'),\
+    _peak_types=[('pdet_f12','f8'), ('pdet_f21','f8'),  ('pdet_f22','f8'),\
                 ('pdet_f23','f8'),  ('pdet_f32','f8'),\
                 ('pdet_f12r1','f8'),('pdet_f21r1','f8'),('pdet_f22r1','f8'),\
                 ('pdet_f23r1','f8'),('pdet_f32r1','f8'),\
                 ('pdet_f12r2','f8'),('pdet_f21r2','f8'),('pdet_f22r2','f8'),\
                 ('pdet_f23r2','f8'),('pdet_f32r2','f8')]
+    _pdet_types=[('pdet_y','i4'),  ('pdet_x','i4'), \
+                ('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
+                ('pdet_v23','f8'),  ('pdet_v32','f8'),\
+                ('pdet_v12r1','f8'),('pdet_v21r1','f8'),('pdet_v22r1','f8'),\
+                ('pdet_v23r1','f8'),('pdet_v32r1','f8'),\
+                ('pdet_v12r2','f8'),('pdet_v21r2','f8'),('pdet_v22r2','f8'),\
+                ('pdet_v23r2','f8'),('pdet_v32r2','f8')]
 
 def detect_coords(imgCov,thres):
     """
