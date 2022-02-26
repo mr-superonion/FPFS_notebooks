@@ -52,6 +52,7 @@ def test_numba(n):
 
 if not _simple_detect:
     logging.info('pdet uses 8 neighboring pixels for detection.')
+    # 3x3 pixels
     _default_inds=[(_j,_i) for _j in range(1,4) for _i in range(1,4)]
     _peak_types=[('pdet_v11','f8'),('pdet_v12','f8'), ('pdet_v13','f8'),\
                 ('pdet_v21','f8'), ('pdet_v22','f8'), ('pdet_v23','f8'),\
@@ -74,6 +75,7 @@ if not _simple_detect:
                 ('pdet_f31r2','f8'), ('pdet_f32r2','f8'),('pdet_f33r2','f8')]
 else:
     logging.info('pdet uses 4 neighboring pixels for detection.')
+    # 3x3 pixels
     _default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
     _peak_types=[('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
                 ('pdet_v23','f8'),  ('pdet_v32','f8'),\
@@ -105,9 +107,9 @@ def detect_coords(imgCov,thres):
         footprint[0, 2] = 0
         footprint[2, 2] = 0
         footprint[2, 0] = 0
-    filtered  = ndi.maximum_filter(imgCov,footprint=footprint,mode='constant')
-    data  = np.int_(np.asarray(np.where(((imgCov > filtered)&(imgCov>thres)))))
-    out   = np.array(np.zeros(data.size//2),dtype=[('pdet_y','i4'),('pdet_x','i4')])
+    filtered=   ndi.maximum_filter(imgCov,footprint=footprint,mode='constant')
+    data    =   np.int_(np.asarray(np.where(((imgCov > filtered)&(imgCov>thres)))))
+    out     =   np.array(np.zeros(data.size//2),dtype=[('pdet_y','i4'),('pdet_x','i4')])
     out['pdet_y']=data[0]
     out['pdet_x']=data[1]
     ny,nx = imgCov.shape
@@ -154,10 +156,12 @@ def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coords=No
     gc.collect()
 
     if coords is None:
+        # the coordinates is not given, so we do another detection
         if not isinstance(thres,(int, np.floating)):
             raise ValueError('thres must be float, but now got %s' %type(thres))
         coords  =   detect_coords(imgCov,thres)
-    return _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
+    peak_array  =   _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
+    return peak_array
 
 def get_shear_response_rfft(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=None):
     """
@@ -198,6 +202,7 @@ def get_shear_response_rfft(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=Non
     gc.collect()
 
     if coords is None:
+        # the coordinates is not given, so we do another detection
         if not isinstance(thres,(int, float)):
             raise ValueError('thres must be float, but now got %s' %type(thres))
         coords  =   detect_coords(imgCov,thres)
@@ -206,6 +211,19 @@ def get_shear_response_rfft(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=Non
     return peak_array
 
 def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
+    """
+    make the peak array and the shear response of the peak array
+    Parameters:
+        coords:     coordinate array
+        imgCov:     unsmeared image (cov) Gaussian
+        imgCovQ1:   unsmeared image (cov) Gaussian (Q1)
+        imgCovQ2:   unsmeared image (cov) Gaussian (Q2)
+        imgCovD1:   unsmeared image (cov) Gaussian (D1)
+        imgCovD2:   unsmeared image (cov) Gaussian (D2)
+
+    Returns:
+        peak array
+    """
     out     =   np.array(np.zeros(coords.size),dtype=_peak_types)
     for _j,_i in _default_inds:
         # the smoothed pixel value
@@ -221,20 +239,30 @@ def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
     out     =   rfn.merge_arrays([coords,out], flatten = True, usemask = False)
     return out
 
-def make_detection_array(peaks,ells):
+def peak2det(peaks):
+    """
+    from peak array to detection array
+    Parameters:
+    peaks:      peak array
+
+    Returns:
+        detection array
+    """
+    # prepare the output
     out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types)
+    # x,y are the same
     out['pdet_y']  = peaks['pdet_y']
     out['pdet_x']  = peaks['pdet_x']
-    cnmv0  =   'pdet_v22'
-    cnmr10 =   'pdet_v22r1'
-    cnmr20 =   'pdet_v22r2'
+    cnmv0   =   'pdet_v22'
+    cnmr10  =   'pdet_v22r1'
+    cnmr20  =   'pdet_v22r2'
     for ind in _default_inds:
-        cnmv ='pdet_v%d%d'  %ind
-        cnmr1='pdet_v%d%dr1'%ind
-        cnmr2='pdet_v%d%dr2'%ind
-        fnmv ='pdet_f%d%d'  %ind
-        fnmr1='pdet_f%d%dr1'%ind
-        fnmr2='pdet_f%d%dr2'%ind
+        cnmv=   'pdet_v%d%d'  %ind
+        cnmr1=  'pdet_v%d%dr1'%ind
+        cnmr2=  'pdet_v%d%dr2'%ind
+        fnmv =  'pdet_f%d%d'  %ind
+        fnmr1=  'pdet_f%d%dr1'%ind
+        fnmr2=  'pdet_f%d%dr2'%ind
         if ind  !=  (2,2):
             out[fnmv] = peaks[cnmv0]-peaks[cnmv]
             out[fnmr1]= peaks[cnmr10]-peaks[cnmr1]
@@ -243,9 +271,6 @@ def make_detection_array(peaks,ells):
             out[fnmv] = peaks[cnmv]
             out[fnmr1]= peaks[cnmr1]
             out[fnmr2]= peaks[cnmr2]
-        if ells is not None:
-            out[fnmr1]= out[fnmr1]*ells['fpfs_e1']
-            out[fnmr2]= out[fnmr2]*ells['fpfs_e2']
     return out
 
 def get_detbias(dets,cut,dcc,inds=_default_inds,dcutz=True):
