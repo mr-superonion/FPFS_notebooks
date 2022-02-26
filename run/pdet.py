@@ -27,7 +27,6 @@ import numpy.lib.recfunctions as rfn
 
 from fpfs.imgutil import gauss_kernel
 
-_simple_detect=False
 _gsigma=3.*2*np.pi/64.
 
 def try_numba_njit(func):
@@ -50,46 +49,26 @@ def test_numba(n):
         out+=1
     return out
 
-if not _simple_detect:
-    logging.info('pdet uses 8 neighboring pixels for detection.')
-    # 3x3 pixels
-    _default_inds=[(_j,_i) for _j in range(1,4) for _i in range(1,4)]
-    _peak_types=[('pdet_f11','f8'),('pdet_f12','f8'), ('pdet_f13','f8'),\
-                ('pdet_f21','f8'), ('pdet_f22','f8'), ('pdet_f23','f8'),\
-                ('pdet_f31','f8'), ('pdet_f32','f8'), ('pdet_f33','f8'),\
-                ('pdet_f11r1','f8'), ('pdet_f12r1','f8'),('pdet_f13r1','f8'),\
-                ('pdet_f21r1','f8'), ('pdet_f22r1','f8'),('pdet_f23r1','f8'),\
-                ('pdet_f31r1','f8'), ('pdet_f32r1','f8'),('pdet_f33r1','f8'),\
-                ('pdet_f11r2','f8'), ('pdet_f12r2','f8'),('pdet_f13r2','f8'),\
-                ('pdet_f21r2','f8'), ('pdet_f22r2','f8'),('pdet_f23r2','f8'),\
-                ('pdet_f31r2','f8'), ('pdet_f32r2','f8'),('pdet_f33r2','f8')]
-    _pdet_types=[('pdet_y','i4'),  ('pdet_x','i4'),\
-                ('pdet_v11','f8'),('pdet_v12','f8'), ('pdet_v13','f8'),\
-                ('pdet_v21','f8'), ('pdet_v22','f8'), ('pdet_v23','f8'),\
-                ('pdet_v31','f8'), ('pdet_v32','f8'), ('pdet_v33','f8'),\
-                ('pdet_v11r1','f8'), ('pdet_v12r1','f8'),('pdet_v13r1','f8'),\
-                ('pdet_v21r1','f8'), ('pdet_v22r1','f8'),('pdet_v23r1','f8'),\
-                ('pdet_v31r1','f8'), ('pdet_v32r1','f8'),('pdet_v33r1','f8'),\
-                ('pdet_v11r2','f8'), ('pdet_v12r2','f8'),('pdet_v13r2','f8'),\
-                ('pdet_v21r2','f8'), ('pdet_v22r2','f8'),('pdet_v23r2','f8'),\
-                ('pdet_v31r2','f8'), ('pdet_v32r2','f8'),('pdet_v33r2','f8')]
-else:
-    logging.info('pdet uses 4 neighboring pixels for detection.')
-    # 3x3 pixels
-    _default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
-    _peak_types=[('pdet_f12','f8'), ('pdet_f21','f8'),  ('pdet_f22','f8'),\
-                ('pdet_f23','f8'),  ('pdet_f32','f8'),\
-                ('pdet_f12r1','f8'),('pdet_f21r1','f8'),('pdet_f22r1','f8'),\
-                ('pdet_f23r1','f8'),('pdet_f32r1','f8'),\
-                ('pdet_f12r2','f8'),('pdet_f21r2','f8'),('pdet_f22r2','f8'),\
-                ('pdet_f23r2','f8'),('pdet_f32r2','f8')]
-    _pdet_types=[('pdet_y','i4'),  ('pdet_x','i4'), \
-                ('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
-                ('pdet_v23','f8'),  ('pdet_v32','f8'),\
-                ('pdet_v12r1','f8'),('pdet_v21r1','f8'),('pdet_v22r1','f8'),\
-                ('pdet_v23r1','f8'),('pdet_v32r1','f8'),\
-                ('pdet_v12r2','f8'),('pdet_v21r2','f8'),('pdet_v22r2','f8'),\
-                ('pdet_v23r2','f8'),('pdet_v32r2','f8')]
+logging.info('pdet uses 4 neighboring pixels for detection.')
+# 3x3 pixels
+_default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
+_peak_types=[('pdet_f12','f8'), ('pdet_f21','f8'),  ('pdet_f22','f8'),\
+            ('pdet_f23','f8'),  ('pdet_f32','f8'),\
+            ('pdet_f12r1','f8'),('pdet_f21r1','f8'),('pdet_f22r1','f8'),\
+            ('pdet_f23r1','f8'),('pdet_f32r1','f8'),\
+            ('pdet_f12r2','f8'),('pdet_f21r2','f8'),('pdet_f22r2','f8'),\
+            ('pdet_f23r2','f8'),('pdet_f32r2','f8')]
+_pdet_types=[('pdet_y','i4'),  ('pdet_x','i4'), \
+            ('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
+            ('pdet_v23','f8'),  ('pdet_v32','f8'),\
+            ('pdet_v12r1','f8'),('pdet_v21r1','f8'),('pdet_v22r1','f8'),\
+            ('pdet_v23r1','f8'),('pdet_v32r1','f8'),\
+            ('pdet_v12r2','f8'),('pdet_v21r2','f8'),('pdet_v22r2','f8'),\
+            ('pdet_v23r2','f8'),('pdet_v32r2','f8')]
+_ncov_types=[('pdet_N22cv12r1','f8'),('pdet_N22cv21r1','f8'),('pdet_N22cv22r1','f8'),\
+            ('pdet_N22cv23r1','f8'), ('pdet_N22cv32r1','f8'),\
+            ('pdet_N22sv12r2','f8'), ('pdet_N22sv21r2','f8'),('pdet_N22sv22r2','f8'),\
+            ('pdet_N22sv23r2','f8'), ('pdet_N22sv32r2','f8')]
 
 def detect_coords(imgCov,thres):
     """
@@ -102,11 +81,10 @@ def detect_coords(imgCov,thres):
     """
     footprint = np.ones((3, 3))
     footprint[1, 1] = 0
-    if _simple_detect:
-        footprint[0, 0] = 0
-        footprint[0, 2] = 0
-        footprint[2, 2] = 0
-        footprint[2, 0] = 0
+    footprint[0, 0] = 0
+    footprint[0, 2] = 0
+    footprint[2, 2] = 0
+    footprint[2, 0] = 0
     filtered=   ndi.maximum_filter(imgCov,footprint=footprint,mode='constant')
     data    =   np.int_(np.asarray(np.where(((imgCov > filtered)&(imgCov>thres)))))
     out     =   np.array(np.zeros(data.size//2),dtype=[('pdet_y','i4'),('pdet_x','i4')])
@@ -230,47 +208,64 @@ def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
         _y  = coords['pdet_y']+_j-2
         _x  = coords['pdet_x']+_i-2
         _v  = imgCov[_y,_x]
-        out['pdet_v%d%d' %(_j,_i)]=_v
+        out['pdet_f%d%d' %(_j,_i)]=_v
         # responses for the smoothed pixel value
         _r1 = imgCovQ1[_y,_x]+(_i-2.)*imgCovD1[_y,_x]-(_j-2.)*imgCovD2[_y,_x]
         _r2 = imgCovQ2[_y,_x]+(_j-2.)*imgCovD1[_y,_x]+(_i-2.)*imgCovD2[_y,_x]
-        out['pdet_v%d%dr1' %(_j,_i)]=_r1
-        out['pdet_v%d%dr2' %(_j,_i)]=_r2
+        out['pdet_f%d%dr1' %(_j,_i)]=_r1
+        out['pdet_f%d%dr2' %(_j,_i)]=_r2
     out     =   rfn.merge_arrays([coords,out], flatten = True, usemask = False)
     return out
 
 def peak2det(peaks):
     """
-    from peak array to detection array
+    convert peak array to detection array
     Parameters:
-    peaks:      peak array
+        peaks:      peak array
 
     Returns:
         detection array
     """
     # prepare the output
-    out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types)
-    # x,y are the same
-    out['pdet_y']  = peaks['pdet_y']
-    out['pdet_x']  = peaks['pdet_x']
-    cnmv0   =   'pdet_v22'
-    cnmr10  =   'pdet_v22r1'
-    cnmr20  =   'pdet_v22r2'
+
+    inm10   =   'pdet_N22cf22r1'
+    inm20   =   'pdet_N22sf22r2'
+    if 'pdet_N22sf23r2' in peaks.dtype.names:
+        noicov  =   True
+        out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types+_ncov_types)
+    else:
+        noicov=False
+        out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types)
+    if ('pdet_y' in peaks.dtype.names) and ('pdet_x' in peaks.dtype.names):
+        # x,y are the same
+        out['pdet_y']  = peaks['pdet_y']
+        out['pdet_x']  = peaks['pdet_x']
+    # v and two components of shear response (vr1, vr2)
+    rlist   =   ['', 'r1', 'r2']
+    fnmv0   =   'pdet_f22%s'
     for ind in _default_inds:
-        cnmv=   'pdet_v%d%d'  %ind
-        cnmr1=  'pdet_v%d%dr1'%ind
-        cnmr2=  'pdet_v%d%dr2'%ind
-        fnmv =  'pdet_f%d%d'  %ind
-        fnmr1=  'pdet_f%d%dr1'%ind
-        fnmr2=  'pdet_f%d%dr2'%ind
-        if ind  !=  (2,2):
-            out[fnmv] = peaks[cnmv0]-peaks[cnmv]
-            out[fnmr1]= peaks[cnmr10]-peaks[cnmr1]
-            out[fnmr2]= peaks[cnmr20]-peaks[cnmr2]
-        else:
-            out[fnmv] = peaks[cnmv]
-            out[fnmr1]= peaks[cnmr1]
-            out[fnmr2]= peaks[cnmr2]
+        for rr in rlist:
+            fnmv =  'pdet_f%d%d%s'  %(ind+(rr,))
+            cnmv =  'pdet_v%d%d%s'  %(ind+(rr,))
+            fnmv22= fnmv0 %(rr)
+            if ind  !=  (2,2):
+                out[cnmv] = peaks[fnmv22]-peaks[fnmv]
+            else:
+                out[cnmv] = peaks[fnmv]
+            del fnmv,cnmv,fnmv22
+
+        if noicov:
+            inm1    =   'pdet_N22cf%d%dr1' %ind
+            inm2    =   'pdet_N22sf%d%dr2' %ind
+            onm1    =   'pdet_N22cv%d%dr1' %ind
+            onm2    =   'pdet_N22sv%d%dr2' %ind
+            if ind  !=  (2,2):
+                out[onm1] = peaks[inm10]-peaks[inm1]
+                out[onm2] = peaks[inm20]-peaks[inm2]
+            else:
+                out[onm1] = peaks[inm1]
+                out[onm2] = peaks[inm2]
+            del inm1,inm2,onm1,onm2
     return out
 
 def get_detbias(dets,cut,dcc,inds=_default_inds,dcutz=True):

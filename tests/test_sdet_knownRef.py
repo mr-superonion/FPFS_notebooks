@@ -22,7 +22,6 @@ import numpy as np
 import astropy.io.fits as pyfits
 from fpfs import simutil
 
-
 def test_centerref(ishear=1):
     """
     Testing the pixel resopnse with referencve point set to galaxy center
