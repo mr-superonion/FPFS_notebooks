@@ -58,17 +58,19 @@ _peak_types=[('pdet_f12','f8'), ('pdet_f21','f8'),  ('pdet_f22','f8'),\
             ('pdet_f23r1','f8'),('pdet_f32r1','f8'),\
             ('pdet_f12r2','f8'),('pdet_f21r2','f8'),('pdet_f22r2','f8'),\
             ('pdet_f23r2','f8'),('pdet_f32r2','f8')]
-_pdet_types=[('pdet_y','i4'),  ('pdet_x','i4'), \
-            ('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
+_pdet_types=[('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
             ('pdet_v23','f8'),  ('pdet_v32','f8'),\
             ('pdet_v12r1','f8'),('pdet_v21r1','f8'),('pdet_v22r1','f8'),\
             ('pdet_v23r1','f8'),('pdet_v32r1','f8'),\
             ('pdet_v12r2','f8'),('pdet_v21r2','f8'),('pdet_v22r2','f8'),\
             ('pdet_v23r2','f8'),('pdet_v32r2','f8')]
-_ncov_types=[('pdet_N22cv12r1','f8'),('pdet_N22cv21r1','f8'),('pdet_N22cv22r1','f8'),\
-            ('pdet_N22cv23r1','f8'), ('pdet_N22cv32r1','f8'),\
-            ('pdet_N22sv12r2','f8'), ('pdet_N22sv21r2','f8'),('pdet_N22sv22r2','f8'),\
-            ('pdet_N22sv23r2','f8'), ('pdet_N22sv32r2','f8')]
+
+_ncov_types=[]
+for (j,i) in _default_inds:
+    _ncov_types.append(('pdet_N00V%d%dr1'  %(j,i),'>f8'))
+    _ncov_types.append(('pdet_N00V%d%dr2'  %(j,i),'>f8'))
+    _ncov_types.append(('pdet_N22cV%d%dr1' %(j,i),'>f8'))
+    _ncov_types.append(('pdet_N22sV%d%dr2' %(j,i),'>f8'))
 
 def detect_coords(imgCov,thres):
     """
@@ -230,20 +232,19 @@ def peak2det(peaks):
 
     inm10   =   'pdet_N22cf22r1'
     inm20   =   'pdet_N22sf22r2'
+    inm30   =   'pdet_N00f22r1'
+    inm40   =   'pdet_N00f22r2'
     if 'pdet_N22sf23r2' in peaks.dtype.names:
         noicov  =   True
         out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types+_ncov_types)
     else:
         noicov=False
         out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types)
-    if ('pdet_y' in peaks.dtype.names) and ('pdet_x' in peaks.dtype.names):
-        # x,y are the same
-        out['pdet_y']  = peaks['pdet_y']
-        out['pdet_x']  = peaks['pdet_x']
     # v and two components of shear response (vr1, vr2)
     rlist   =   ['', 'r1', 'r2']
     fnmv0   =   'pdet_f22%s'
     for ind in _default_inds:
+        # the shear response of detection modes
         for rr in rlist:
             fnmv =  'pdet_f%d%d%s'  %(ind+(rr,))
             cnmv =  'pdet_v%d%d%s'  %(ind+(rr,))
@@ -256,16 +257,129 @@ def peak2det(peaks):
 
         if noicov:
             inm1    =   'pdet_N22cf%d%dr1' %ind
+            onm1    =   'pdet_N22cV%d%dr1' %ind
             inm2    =   'pdet_N22sf%d%dr2' %ind
-            onm1    =   'pdet_N22cv%d%dr1' %ind
-            onm2    =   'pdet_N22sv%d%dr2' %ind
+            onm2    =   'pdet_N22sV%d%dr2' %ind
+            inm3    =   'pdet_N00f%d%dr1' %ind
+            onm3    =   'pdet_N00V%d%dr1' %ind
+            inm4    =   'pdet_N00f%d%dr2' %ind
+            onm4    =   'pdet_N00V%d%dr2' %ind
             if ind  !=  (2,2):
                 out[onm1] = peaks[inm10]-peaks[inm1]
                 out[onm2] = peaks[inm20]-peaks[inm2]
+                out[onm3] = peaks[inm30]-peaks[inm3]
+                out[onm4] = peaks[inm40]-peaks[inm4]
             else:
                 out[onm1] = peaks[inm1]
                 out[onm2] = peaks[inm2]
-            del inm1,inm2,onm1,onm2
+                out[onm3] = peaks[inm3]
+                out[onm4] = peaks[inm4]
+            del inm1,onm1,inm2,onm2,inm3,onm3,inm4,onm4
+    return out
+
+def fpfsM2E(moments,dets=None,const=1.,noirev=False):
+    """
+    Estimate FPFS ellipticities from fpfs moments
+
+    Parameters:
+    moments:    input FPFS moments     [float array]
+    dets:       input detection array
+    const:      the _wing Constant [float]
+    mcalib:     multiplicative bias [float array]
+    noirev:     revise the second-order noise bias? [bool]
+
+    Returns:
+        an array of (FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio, and FPFS selection response)
+    """
+    types   =   [('fpfs_e1','>f8'), ('fpfs_e2','>f8'),      ('fpfs_RE','>f8'),\
+                ('fpfs_s0','>f8') , ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
+    # response for selections (2 shear components for each)
+    #Get inverse weight
+    _w  =   moments['fpfs_M00']+const
+    #Ellipticity
+    e1      =   moments['fpfs_M22c']/_w
+    e2      =   moments['fpfs_M22s']/_w
+    e1sq    =   e1*e1
+    e2sq    =   e2*e2
+    #FPFS flux ratio
+    s0      =   moments['fpfs_M00']/_w
+    s4      =   moments['fpfs_M40']/_w
+    #FPFS sel Respose (part1)
+    e1sqS0  =   e1sq*s0
+    e2sqS0  =   e2sq*s0
+
+
+    # prepare the shear response for detection operation
+    if dets is not None:
+        dDict=  {}
+        for (j,i) in _default_inds:
+            types.append(('fpfs_e1v%d%dr1'%(j,i),'>f8'))
+            types.append(('fpfs_e2v%d%dr2'%(j,i),'>f8'))
+            dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
+            dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
+    else:
+        dDict=  None
+
+    if noirev:
+        assert 'fpfs_N00N00' in moments.dtype.names
+        assert 'fpfs_N00N22c' in moments.dtype.names
+        assert 'fpfs_N00N22s' in moments.dtype.names
+        ratio=  moments['fpfs_N00N00']/_w**2.
+
+        # correction for detection shear response
+        if dDict is not None:
+            assert 'pdet_N22cV22r1' in dets.dtype.names
+            assert 'pdet_N22sV22r2' in dets.dtype.names
+            for (j,i) in _default_inds:
+                dDict['fpfs_e1v%d%dr1'%(j,i)]=(dDict['fpfs_e1v%d%dr1'%(j,i)]\
+                    +e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w-dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
+                    +moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)])/(1+ratio)
+
+                dDict['fpfs_e2v%d%dr2'%(j,i)]=(dDict['fpfs_e2v%d%dr2'%(j,i)]\
+                    +e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w-dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
+                    +moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)])/(1+ratio)
+
+        e1  =   (e1+moments['fpfs_N00N22c']\
+                /_w**2.)/(1+ratio)
+        e2  =   (e2+moments['fpfs_N00N22s']\
+                /_w**2.)/(1+ratio)
+        e1sq=   (e1sq-moments['fpfs_N22cN22c']/_w**2.\
+                +4.*e1*moments['fpfs_N00N22c']/_w**2.)\
+                /(1.+3*ratio)
+        e2sq=   (e2sq-moments['fpfs_N22sN22s']/_w**2.\
+                +4.*e2*moments['fpfs_N00N22s']/_w**2.)\
+                /(1.+3*ratio)
+        s0  =   (s0+moments['fpfs_N00N00']\
+                /_w**2.)/(1+ratio)
+        s4  =   (s4+moments['fpfs_N00N40']\
+                /_w**2.)/(1+ratio)
+
+        # correction for selection (by s0) shear response
+        e1sqS0= (e1sqS0+3.*e1sq*moments['fpfs_N00N00']/_w**2.\
+                -s0*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
+        e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/_w**2.\
+                -s0*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
+
+        gc.collect()
+
+    out  =   np.array(np.zeros(moments.size),dtype=types)
+    if dDict is not None:
+        for (j,i) in _default_inds:
+            out['fpfs_e1v%d%dr1'%(j,i)] = dDict['fpfs_e1v%d%dr1'%(j,i)]
+            out['fpfs_e2v%d%dr2'%(j,i)] = dDict['fpfs_e2v%d%dr2'%(j,i)]
+        del dDict
+        gc.collect()
+
+    eSq     =   e1sq+e2sq
+    eSqS0   =   e1sqS0+e2sqS0
+    #Response factor
+    RE   =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq)
+    out['fpfs_e1']   =   e1
+    out['fpfs_e2']   =   e2
+    out['fpfs_RE']   =   RE
+    out['fpfs_s0']   =   s0
+    out['fpfs_eSquare']  =   eSq
+    out['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)
     return out
 
 def get_detbias(dets,cut,dcc,inds=_default_inds,dcutz=True):
