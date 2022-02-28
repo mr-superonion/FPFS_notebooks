@@ -380,7 +380,7 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False):
     RE   =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq)
     out['fpfs_e1']   =   e1
     out['fpfs_e2']   =   e2
-    out['fpfs_RE']   =   RE
+    out['fpfs_RE']   =   RE*-1
     out['fpfs_s0']   =   s0
     out['fpfs_eSquare']  =   eSq
     out['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)
