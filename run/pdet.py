@@ -221,7 +221,7 @@ def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
 
 def peak2det(peaks):
     """
-    convert peak array to detection array
+    convert peak array (merged with fpfs catalog) to detection array
     Parameters:
         peaks:      peak array
 
@@ -230,22 +230,26 @@ def peak2det(peaks):
     """
     # prepare the output
 
-    inm10   =   'pdet_N22cf22r1'
-    inm20   =   'pdet_N22sf22r2'
-    inm30   =   'pdet_N00f22r1'
-    inm40   =   'pdet_N00f22r2'
-    if 'pdet_N22sf23r2' in peaks.dtype.names:
+    if 'pdet_N22sF22r2' in peaks.dtype.names:
         noicov  =   True
         out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types+_ncov_types)
     else:
         noicov=False
         out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types)
+
+    # column name for noise covariance for pixel values
+    inm10   =   'pdet_N22cF22r1'
+    inm20   =   'pdet_N22sF22r2'
+    inm30   =   'pdet_N00F22r1'
+    inm40   =   'pdet_N00F22r2'
+
     # v and two components of shear response (vr1, vr2)
     rlist   =   ['', 'r1', 'r2']
     fnmv0   =   'pdet_f22%s'
     for ind in _default_inds:
         # the shear response of detection modes
         for rr in rlist:
+            # get the detection modes from the pixel values
             fnmv =  'pdet_f%d%d%s'  %(ind+(rr,))
             cnmv =  'pdet_v%d%d%s'  %(ind+(rr,))
             fnmv22= fnmv0 %(rr)
@@ -256,13 +260,13 @@ def peak2det(peaks):
             del fnmv,cnmv,fnmv22
 
         if noicov:
-            inm1    =   'pdet_N22cf%d%dr1' %ind
+            inm1    =   'pdet_N22cF%d%dr1' %ind
             onm1    =   'pdet_N22cV%d%dr1' %ind
-            inm2    =   'pdet_N22sf%d%dr2' %ind
+            inm2    =   'pdet_N22sF%d%dr2' %ind
             onm2    =   'pdet_N22sV%d%dr2' %ind
-            inm3    =   'pdet_N00f%d%dr1' %ind
+            inm3    =   'pdet_N00F%d%dr1' %ind
             onm3    =   'pdet_N00V%d%dr1' %ind
-            inm4    =   'pdet_N00f%d%dr2' %ind
+            inm4    =   'pdet_N00F%d%dr2' %ind
             onm4    =   'pdet_N00V%d%dr2' %ind
             if ind  !=  (2,2):
                 out[onm1] = peaks[inm10]-peaks[inm1]
