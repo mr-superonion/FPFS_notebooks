@@ -190,7 +190,7 @@ class processBasicDriverTask(BatchPoolTask):
             powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
             powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
             powModel[0] =   powIn
-            fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta,det_gsigma=gsigma)
+            fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta)#,det_gsigma=gsigma)
         else:
             noiVar      =   1e-20
             self.log.info('noiseless setup')
@@ -222,12 +222,13 @@ class processBasicDriverTask(BatchPoolTask):
             else:
                 self.log.info('Skip HSM measurement: %04d, %s' %(ifield,ishear))
             # self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
-            # pp  =   'cut%d' %rcut
-            pp  =   'det2'
+            pp  =   'cut%d' %rcut
+            # pp  =   'det' # run real detection
             outFname    =   os.path.join(cache.outDir,'fpfs-%s-%04d-%s.fits' %(pp,ifield,ishear))
             if not os.path.exists(outFname) and cache.doFPFS:
                 self.log.info('FPFS measurement: %04d, %s' %(ifield,ishear))
                 if 'basicCenter' in galDir and 'det' not in pp:
+                    # fake detection
                     indX    =   np.arange(32,ngrid2,64)
                     indY    =   np.arange(32,ngrid2,64)
                     inds    =   np.meshgrid(indY,indX,indexing='ij')
