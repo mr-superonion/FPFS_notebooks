@@ -63,7 +63,8 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     noiName     = pexConfig.Field(
         dtype=str,
-        default="var4em3",#"var7em3",
+        # default="var4em3",
+        default="var0em0",
         doc="noise variance name"
     )
     inDir       = pexConfig.Field(
@@ -158,10 +159,8 @@ class processBasicDriverTask(BatchPoolTask):
                 raise ValueError("stars do not support noiseless simulations")
             igroup  =   0
         else:
-            if "var0em0" not in cache.outDir:
-                igroup  =   ifield//4
-            else:
-                igroup  =   ifield
+            # for COSMOS galaxies, 4 noise realizations share one galaxy
+            igroup  =   ifield//4
         self.log.info('running for group: %s, field: %s' %(igroup,ifield))
 
         # PSF
@@ -194,7 +193,7 @@ class processBasicDriverTask(BatchPoolTask):
         else:
             noiVar      =   1e-20
             self.log.info('noiseless setup')
-            fpTask      =   fpfsBase.fpfsTask(psfData2,beta=beta)
+            fpTask      =   fpfsBase.fpfsTask(psfData2,beta=beta,det_gsigma=None)
             noiData     =   None
 
         # isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
