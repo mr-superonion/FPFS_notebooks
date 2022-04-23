@@ -76,10 +76,13 @@ def detect_coords(imgCov,thres):
     """
     detect peaks and return the coordinates (y,x)
     Parameters:
-        imgCov:     convolved image
-        thres:      detection threshold
+    ----
+    imgCov:     convolved image
+    thres:      detection threshold
+
     Returns:
-        ndarray of coordinates (y,x)
+    ----
+    coord_array:     ndarray of coordinates (y,x)
     """
     footprint = np.ones((3, 3))
     footprint[1, 1] = 0
@@ -95,18 +98,22 @@ def detect_coords(imgCov,thres):
     ny,nx = imgCov.shape
     msk   = (out['pdet_y']>20)&(out['pdet_y']<ny-20)\
                 &(out['pdet_x']>20)&(out['pdet_x']<nx-20)
-    return out[msk]
+    coord_array= out[msk]
+    return coord_array
 
 def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coords=None):
     """
     Get the shear response for pixels identified as peaks
     Parameters:
-        imgData:    observed image [ndarray]
-        psfData:    PSF image center at middle [ndarray]
-        gsigma:     sigma of the Gaussian smoothing kernel [float]
-        thres:      detection threshold
+    ----
+    imgData:    observed image [ndarray]
+    psfData:    PSF image center at middle [ndarray]
+    gsigma:     sigma of the Gaussian smoothing kernel [float]
+    thres:      detection threshold
+
     Returns:
-        peak values and the shear responses
+    ----
+    peak_array    peak values and the shear responses
     """
 
     assert imgData.shape==psfData.shape, 'image and PSF should have the same\
@@ -149,12 +156,15 @@ def get_shear_response_rfft(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=Non
     This fucntion ueses np.fft.rfft2 instead of np.fft.fft2
     (This is about 1.35 times faster and only use 0.85 memory)
     Parameters:
-        imgData:    observed image [ndarray]
-        psfData:    PSF image (the average PSF of the exposure) [ndarray]
-        gsigma:     sigma of the Gaussian smoothing kernel in Fourier space [float]
-        thres:      detection threshold
+    ----
+    imgData:    observed image [ndarray]
+    psfData:    PSF image (the average PSF of the exposure) [ndarray]
+    gsigma:     sigma of the Gaussian smoothing kernel in Fourier space [float]
+    thres:      detection threshold
+
     Returns:
-        peak values and the shear responses
+    ----
+    peak_array: peak values and the shear responses
     """
 
     assert imgData.shape==psfData.shape, 'image and PSF should have the same\
@@ -194,15 +204,17 @@ def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
     """
     make the peak array and the shear response of the peak array
     Parameters:
-        coords:     coordinate array
-        imgCov:     unsmeared image (cov) Gaussian
-        imgCovQ1:   unsmeared image (cov) Gaussian (Q1)
-        imgCovQ2:   unsmeared image (cov) Gaussian (Q2)
-        imgCovD1:   unsmeared image (cov) Gaussian (D1)
-        imgCovD2:   unsmeared image (cov) Gaussian (D2)
+    ----
+    coords:     coordinate array
+    imgCov:     unsmeared image (cov) Gaussian
+    imgCovQ1:   unsmeared image (cov) Gaussian (Q1)
+    imgCovQ2:   unsmeared image (cov) Gaussian (Q2)
+    imgCovD1:   unsmeared image (cov) Gaussian (D1)
+    imgCovD2:   unsmeared image (cov) Gaussian (D2)
 
     Returns:
-        peak array
+    ----
+    out:        peak array
     """
     out     =   np.array(np.zeros(coords.size),dtype=_peak_types)
     for _j,_i in _default_inds:
@@ -223,10 +235,12 @@ def peak2det(peaks):
     """
     convert peak array (merged with fpfs catalog) to detection array
     Parameters:
-        peaks:      peak array
+    ----
+    peaks:  peak array
 
     Returns:
-        detection array
+    ----
+    out:    detection array
     """
     # prepare the output
 
@@ -286,6 +300,7 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False):
     Estimate FPFS ellipticities from fpfs moments
 
     Parameters:
+    ----
     moments:    input FPFS moments     [float array]
     dets:       input detection array
     const:      the _wing Constant [float]
@@ -293,7 +308,9 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False):
     noirev:     revise the second-order noise bias? [bool]
 
     Returns:
-        an array of (FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio, and FPFS selection response)
+    ----
+    out:        an array of (FPFS ellipticities, FPFS ellipticity response,
+                FPFS flux ratio, and FPFS selection response)
     """
     types   =   [('fpfs_e1','>f8'), ('fpfs_e2','>f8'),      ('fpfs_RE','>f8'),\
                 ('fpfs_s0','>f8') , ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
@@ -312,7 +329,6 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False):
     e1sqS0  =   e1sq*s0
     e2sqS0  =   e2sq*s0
 
-
     # prepare the shear response for detection operation
     if dets is not None:
         dDict=  {}
@@ -325,15 +341,21 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False):
         dDict=  None
 
     if noirev:
-        assert 'fpfs_N00N00' in moments.dtype.names
-        assert 'fpfs_N00N22c' in moments.dtype.names
-        assert 'fpfs_N00N22s' in moments.dtype.names
+        assert 'fpfs_N00N00' in moments.dtype.names, 'Cannot do noise bias revision,\
+                since covariance of FPFS measurements are not in the catalog !!'
+        assert 'fpfs_N00N22c' in moments.dtype.names, 'Cannot do noise bias revision,\
+                since covariance of FPFS measurements are not in the catalog !!'
+        assert 'fpfs_N00N22s' in moments.dtype.names, 'Cannot do noise bias revision,\
+                since covariance of FPFS measurements are not in the catalog !!'
         ratio=  moments['fpfs_N00N00']/_w**2.
 
         # correction for detection shear response
         if dDict is not None:
-            assert 'pdet_N22cV22r1' in dets.dtype.names
-            assert 'pdet_N22sV22r2' in dets.dtype.names
+            assert 'pdet_N22cV22r1' in dets.dtype.names, 'Cannot do noise bias revision,\
+                since covariance of detection values measurements are not in the catalog !!'
+            assert 'pdet_N22sV22r2' in dets.dtype.names, 'Cannot do noise bias revision,\
+                since covariance of detection values measurements are not in the catalog !!'
+
             for (j,i) in _default_inds:
                 dDict['fpfs_e1v%d%dr1'%(j,i)]=(dDict['fpfs_e1v%d%dr1'%(j,i)]\
                     +e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w-dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
@@ -385,46 +407,3 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False):
     out['fpfs_eSquare']  =   eSq
     out['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)
     return out
-
-def get_detbias(dets,cut,dcc,inds=_default_inds,dcutz=True):
-    """
-    Parameters:
-        dets: 	    detection array
-        cut:        selection cut
-        dcc:        bin size when estimating marginal density
-        inds:       shifting indexes
-    """
-    if not isinstance(inds,list):
-        if isinstance(inds,tuple):
-            inds=[inds]
-        else:
-            raise TypeError('inds should be a list of tuple or a tuple')
-    cor1 =0.
-    cor2 =0.
-    for ind in inds:
-        fnmv ='pdet_f%d%d'  %ind
-        fnmr1='pdet_f%d%dr1'%ind
-        fnmr2='pdet_f%d%dr2'%ind
-        ll=cut;uu=cut+dcc
-        if ind!=(2,2) and dcutz:
-            ll=0.;uu=dcc
-        msk=(dets[fnmv]>ll)&(dets[fnmv]<uu)
-        if np.sum(msk)>2:
-            cor1=cor1+np.sum(dets[fnmr1][msk])/dcc
-            cor2=cor2+np.sum(dets[fnmr2][msk])/dcc
-    return cor1,cor2
-
-def detbias(sel,selresEll,cut,dcc):
-    """
-    Parameters:
-        sel: 	    selection funciton
-        selresEll:  response of selection function times ellipticities
-        cut:        selection cut
-        dcc:        bin size when estimating marginal density
-    """
-    msk=(sel>cut)&(sel<cut+dcc)
-    if np.sum(msk)==0:
-        cor=0.
-    else:
-        cor=np.sum(selresEll[msk])/dcc
-    return cor
