@@ -24,12 +24,13 @@
 import os
 import gc
 # import psutil
+import pdet
 import numpy as np
 from fpfs import simutil
 from fpfs import fpfsBase
 import astropy.io.fits as pyfits
-import pdet
 import numpy.lib.recfunctions as rfn
+import lsst.utils.timer as lsst_timer
 
 from readDataSim import readDataSimTask
 # lsst Tasks
@@ -58,7 +59,7 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     galDir      = pexConfig.Field(
         dtype=str,
-        default="galaxy_basicCenter_psf60",#"small2_psf60",
+        default="galaxy_basic1Center_psf60",#"small2_psf60",
         doc="Input galaxy directory"
     )
     noiName     = pexConfig.Field(
@@ -100,23 +101,30 @@ class processBasicRunner(TaskRunner):
         minIndex    =  parsedCmd.minIndex
         maxIndex    =  parsedCmd.maxIndex
         return [(ref, kwargs) for ref in range(minIndex,maxIndex)]
-def unpickle(factory, args, kwargs):
-    """Unpickle something by calling a factory"""
-    return factory(*args, **kwargs)
+
 class processBasicDriverTask(BatchPoolTask):
     ConfigClass = processBasicDriverConfig
     RunnerClass = processBasicRunner
     _DefaultName = "processBasicDriver"
-    def __reduce__(self):
-        """Pickler"""
-        return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
-                parentTask=self._parentTask, log=self.log))
+
+    @classmethod
+    def _makeArgumentParser(cls, *args, **kwargs):
+        kwargs.pop("doBatch", False)
+        parser = pipeBase.ArgumentParser(name=cls._DefaultName)
+        parser.add_argument('--minIndex', type= int,
+                        default=0,
+                        help='minimum Index number')
+        parser.add_argument('--maxIndex', type= int,
+                        default=1,
+                        help='maximum Index number')
+        return parser
+
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
         self.makeSubtask("readDataSim",schema=self.schema)
 
-    @pipeBase.timeMethod
+    @lsst_timer.timeMethod
     def runDataRef(self,index):
         #Prepare the pool
         pool    =   Pool("processBasic")
@@ -130,19 +138,19 @@ class processBasicDriverTask(BatchPoolTask):
         pool.map(self.process,fieldList)
         return
 
-    @pipeBase.timeMethod
-    def process(self,cache,ifield):
+    def process(self,cache,nid):
         # Basic
-        nn          =   100
-        ngrid       =   64
-        ngrid2      =   ngrid*nn
+
 
         beta        =   0.75
-        gsigma      =   6.*2.*np.pi/64
-        pixScale    =   0.168
+        # gsigma      =   6.*2.*np.pi/64. # try1 --- this is very unstable
+        gsigma      =   3.*2.*np.pi/64.  # try2
 
         # necessary directories
-        # galDir      =   'galaxy_basic_psf%s' %psfFWHM
+        ngrid       =   64
+        nn          =   100
+        ngrid2      =   ngrid*nn
+        pixScale    =   0.168
         galDir      =   cache.galDir
         psfFWHM     =   galDir.split('_psf')[-1]
         #psfFWHMF    =   eval(psfFWHM)/100.
@@ -150,18 +158,27 @@ class processBasicDriverTask(BatchPoolTask):
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
         if 'small' in galDir:
+            self.log.info('Using small galaxies')
             if "var0em0" not in cache.outDir:
-                igroup  =   ifield//8
+                # for COSMOS galaxies, 4 noise realizations share one galaxy
+                gid  =   nid//8
             else:
-                igroup  =   ifield
+                gid  =   nid
         elif 'star' in galDir:
+            self.log.info('Using stars')
             if "var0em0" not in cache.outDir:
                 raise ValueError("stars do not support noiseless simulations")
-            igroup  =   0
-        else:
+            gid  =   0
+        elif 'basic1' in galDir:
             # for COSMOS galaxies, 4 noise realizations share one galaxy
-            igroup  =   ifield//4
-        self.log.info('running for group: %s, field: %s' %(igroup,ifield))
+            self.log.info('Using cosmosis parametric galaxies v1.')
+            gid  =   nid//4
+        elif 'basic2' in galDir:
+            self.log.info('Using cosmosis parametric galaxies v2.')
+            gid  =  nid
+        else:
+            raise ValueError("galDir should cantain either 'small', 'star' or basic1/2")
+        self.log.info('running for galaxy field: %s, noise field: %s' %(gid,nid))
 
         # PSF
         psfFname    =   os.path.join(galDir,'psf-%s.fits' %psfFWHM)
@@ -179,7 +196,7 @@ class processBasicDriverTask(BatchPoolTask):
             _tmp        =   cache.outDir.split('var')[-1]
             noiVar      =   eval(_tmp[0])*10**(-1.*eval(_tmp[3]))
             self.log.info('noisy setup with variance: %.3f' %noiVar)
-            noiFname    =   os.path.join('noise','noi%04d.fits' %ifield)
+            noiFname    =   os.path.join('noise','noi%04d.fits' %nid)
             if not os.path.isfile(noiFname):
                 self.log.info('Cannot find input noise file: %s' %noiFname)
                 return
@@ -192,16 +209,16 @@ class processBasicDriverTask(BatchPoolTask):
             fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta,det_gsigma=gsigma)
         else:
             noiVar      =   1e-20
-            self.log.info('noiseless setup')
+            self.log.info('We are using noiseless setup')
             fpTask      =   fpfsBase.fpfsTask(psfData2,beta=beta,det_gsigma=None)
             noiData     =   None
 
-        # isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
-        # isList      =   ['g1-1111']
-        isList      =   ['g1-0000','g1-2222']
+        # isList        =   ['g1-0000','g2-0000','g1-2222','g2-2222']
+        # isList        =   ['g1-1111']
+        isList          =   ['g1-0000','g1-2222']
         # isList        =   ['g1-0000']
         for ishear in isList:
-            galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
+            galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(gid,ishear))
             if not os.path.isfile(galFname):
                 self.log.info('Cannot find input galaxy file: %s' %galFname)
                 return
@@ -209,9 +226,9 @@ class processBasicDriverTask(BatchPoolTask):
             if noiData is not None:
                 galData =   galData+noiData
 
-            outFname    =   os.path.join(cache.outDir,'src-%04d-%s.fits' %(ifield,ishear))
+            outFname    =   os.path.join(cache.outDir,'src-%04d-%s.fits' %(nid,ishear))
             if not os.path.exists(outFname) and cache.doHSM:
-                self.log.info('HSM measurement: %04d, %s' %(ifield,ishear))
+                self.log.info('HSM measurement: %04d, %s' %(nid,ishear))
                 exposure=   simutil.makeHSCExposure(galData,psfData,pixScale,noiVar)
                 src     =   self.readDataSim.measureSource(exposure)
                 wFlag   =   afwTable.SOURCE_IO_NO_FOOTPRINTS
@@ -219,14 +236,13 @@ class processBasicDriverTask(BatchPoolTask):
                 del exposure,src
                 gc.collect()
             else:
-                self.log.info('Skip HSM measurement: %04d, %s' %(ifield,ishear))
-            # self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
+                self.log.info('Skip HSM measurement: %04d, %s' %(nid,ishear))
             pp  =   'cut%d' %rcut
             # pp  =   'det' # run real detection
-            outFname    =   os.path.join(cache.outDir,'fpfs-%s-%04d-%s.fits' %(pp,ifield,ishear))
+            outFname    =   os.path.join(cache.outDir,'fpfs-%s-%04d-%s.fits' %(pp,nid,ishear))
             if not os.path.exists(outFname) and cache.doFPFS:
-                self.log.info('FPFS measurement: %04d, %s' %(ifield,ishear))
-                if 'basicCenter' in galDir and 'det' not in pp:
+                self.log.info('FPFS measurement: %04d, %s' %(nid,ishear))
+                if 'Center' in galDir and 'det' not in pp:
                     # fake detection
                     indX    =   np.arange(32,ngrid2,64)
                     indY    =   np.arange(32,ngrid2,64)
@@ -248,40 +264,16 @@ class processBasicDriverTask(BatchPoolTask):
                 del imgList,out,out1
                 gc.collect()
             else:
-                self.log.info('Skip FPFS measurement: %04d, %s' %(ifield,ishear))
+                self.log.info('Skip FPFS measurement: %04d, %s' %(nid,ishear))
             # self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
-
             del galData,outFname
             gc.collect()
-        self.log.info('finish %s' %(ifield))
+        self.log.info('finish %s' %(nid))
         return
 
-    @classmethod
-    def _makeArgumentParser(cls, *args, **kwargs):
-        kwargs.pop("doBatch", False)
-        parser = pipeBase.ArgumentParser(name=cls._DefaultName)
-        parser.add_argument('--minIndex', type= int,
-                        default=0,
-                        help='minimum Index number')
-        parser.add_argument('--maxIndex', type= int,
-                        default=1,
-                        help='maximum Index number')
-        return parser
-
-    @classmethod
-    def batchWallTime(cls, time, parsedCmd, numCpus):
-        return None
-    def writeConfig(self, butler, clobber=False, doBackup=False):
-        pass
-    def writeSchemas(self, butler, clobber=False, doBackup=False):
-        pass
-    def writeMetadata(self, ifield):
-        pass
-    def writeEupsVersions(self, butler, clobber=False, doBackup=False):
-        pass
     def _getConfigName(self):
-        return None
-    def _getEupsVersionsName(self):
+        """It's not worth preserving the configuration"""
         return None
     def _getMetadataName(self):
+        """There's no metadata to write out"""
         return None

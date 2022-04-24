@@ -101,7 +101,7 @@ def detect_coords(imgCov,thres):
     coord_array= out[msk]
     return coord_array
 
-def get_shear_response(imgData,psfData,gsigma=3.*2*np.pi/64,thres=0.01,coords=None):
+def get_shear_response(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=None):
     """
     Get the shear response for pixels identified as peaks
     Parameters:
