@@ -30,7 +30,7 @@ from fpfs import simutil
 from fpfs import fpfsBase
 import astropy.io.fits as pyfits
 import numpy.lib.recfunctions as rfn
-import lsst.utils.timer as lsst_timer
+from lsst.utils.timer import timeMethod
 
 from readDataSim import readDataSimTask
 # lsst Tasks
@@ -59,13 +59,13 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     galDir      = pexConfig.Field(
         dtype=str,
-        default="galaxy_basic1Center_psf60",#"small2_psf60",
+        default="galaxy_basic2Center_psf60",#"small2_psf60",
         doc="Input galaxy directory"
     )
     noiName     = pexConfig.Field(
         dtype=str,
-        # default="var4em3",
-        default="var0em0",
+        default="var4em3",
+        # default="var0em0",
         doc="noise variance name"
     )
     inDir       = pexConfig.Field(
@@ -124,7 +124,7 @@ class processBasicDriverTask(BatchPoolTask):
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
         self.makeSubtask("readDataSim",schema=self.schema)
 
-    @lsst_timer.timeMethod
+    @timeMethod
     def runDataRef(self,index):
         #Prepare the pool
         pool    =   Pool("processBasic")
@@ -138,25 +138,26 @@ class processBasicDriverTask(BatchPoolTask):
         pool.map(self.process,fieldList)
         return
 
+    @timeMethod
     def process(self,cache,nid):
-        # Basic
-
-
-        beta        =   0.75
-        # gsigma      =   6.*2.*np.pi/64. # try1 --- this is very unstable
-        gsigma      =   3.*2.*np.pi/64.  # try2
 
         # necessary directories
-        ngrid       =   64
         nn          =   100
+        ngrid       =   64
         ngrid2      =   ngrid*nn
         pixScale    =   0.168
         galDir      =   cache.galDir
         psfFWHM     =   galDir.split('_psf')[-1]
         #psfFWHMF    =   eval(psfFWHM)/100.
+
+        # FPFS Basic
+        beta        =   0.75
+        # gsigma    =   6.*2.*np.pi/64. # try1 --- this is very unstable
+        gsigma      =   3.*2.*np.pi/64.  # try2
         rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
+
         if 'small' in galDir:
             self.log.info('Using small galaxies')
             if "var0em0" not in cache.outDir:
