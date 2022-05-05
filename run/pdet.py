@@ -27,7 +27,7 @@ import numpy.lib.recfunctions as rfn
 
 from fpfs.imgutil import gauss_kernel
 
-_gsigma=3.*2*np.pi/64.
+# _gsigma=3.*2*np.pi/64.
 
 logging.info('pdet uses 4 neighboring pixels for detection.')
 # 3x3 pixels
