@@ -29,26 +29,6 @@ from fpfs.imgutil import gauss_kernel
 
 _gsigma=3.*2*np.pi/64.
 
-def try_numba_njit(func):
-    try:
-        import numba
-        return numba.njit(func)
-    except ImportError:
-        return func
-
-@try_numba_njit
-def test_numba_njit(n):
-    out=0
-    for _ in range(n):
-        out+=1
-    return out
-
-def test_numba(n):
-    out=0
-    for _ in range(n):
-        out+=1
-    return out
-
 logging.info('pdet uses 4 neighboring pixels for detection.')
 # 3x3 pixels
 _default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
@@ -75,14 +55,13 @@ for (j,i) in _default_inds:
 def detect_coords(imgCov,thres):
     """
     detect peaks and return the coordinates (y,x)
+
     Parameters:
-    ----
-    imgCov:     convolved image
-    thres:      detection threshold
+        imgCov (ndarray):       convolved image
+        thres (float):          detection threshold
 
     Returns:
-    ----
-    coord_array:     ndarray of coordinates (y,x)
+        coord_array (ndarray):  ndarray of coordinates (y,x)
     """
     footprint = np.ones((3, 3))
     footprint[1, 1] = 0
@@ -105,15 +84,13 @@ def get_shear_response(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=None):
     """
     Get the shear response for pixels identified as peaks
     Parameters:
-    ----
-    imgData:    observed image [ndarray]
-    psfData:    PSF image center at middle [ndarray]
-    gsigma:     sigma of the Gaussian smoothing kernel [float]
-    thres:      detection threshold
+        imgData (ndarray):      observed image [ndarray]
+        psfData (ndarray):      PSF image center at middle [ndarray]
+        gsigma (float):         sigma of the Gaussian smoothing kernel [float]
+        thres (float):          detection threshold
 
     Returns:
-    ----
-    peak_array    peak values and the shear responses
+        peak_array (ndarray):   peak values and the shear responses
     """
 
     assert imgData.shape==psfData.shape, 'image and PSF should have the same\
@@ -155,16 +132,15 @@ def get_shear_response_rfft(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=Non
     Get the shear response for pixels identified as peaks.
     This fucntion ueses np.fft.rfft2 instead of np.fft.fft2
     (This is about 1.35 times faster and only use 0.85 memory)
+
     Parameters:
-    ----
-    imgData:    observed image [ndarray]
-    psfData:    PSF image (the average PSF of the exposure) [ndarray]
-    gsigma:     sigma of the Gaussian smoothing kernel in Fourier space [float]
-    thres:      detection threshold
+        imgData (ndarray):      observed image
+        psfData (ndarray):      PSF image (the average PSF of the exposure)
+        gsigma (float):         sigma of the Gaussian smoothing kernel in Fourier space
+        thres (float):          detection threshold
 
     Returns:
-    ----
-    peak_array: peak values and the shear responses
+        peak_array (ndarray):   peak values and the shear responses
     """
 
     assert imgData.shape==psfData.shape, 'image and PSF should have the same\
@@ -203,18 +179,17 @@ def get_shear_response_rfft(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=Non
 def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
     """
     make the peak array and the shear response of the peak array
+
     Parameters:
-    ----
-    coords:     coordinate array
-    imgCov:     unsmeared image (cov) Gaussian
-    imgCovQ1:   unsmeared image (cov) Gaussian (Q1)
-    imgCovQ2:   unsmeared image (cov) Gaussian (Q2)
-    imgCovD1:   unsmeared image (cov) Gaussian (D1)
-    imgCovD2:   unsmeared image (cov) Gaussian (D2)
+        coords (ndarray):     coordinate array
+        imgCov (ndarray):     unsmeared image (cov) Gaussian
+        imgCovQ1 (ndarray):   unsmeared image (cov) Gaussian (Q1)
+        imgCovQ2 (ndarray):   unsmeared image (cov) Gaussian (Q2)
+        imgCovD1 (ndarray):   unsmeared image (cov) Gaussian (D1)
+        imgCovD2 (ndarray):   unsmeared image (cov) Gaussian (D2)
 
     Returns:
-    ----
-    out:        peak array
+        out (ndarray):        peak array
     """
     out     =   np.array(np.zeros(coords.size),dtype=_peak_types)
     for _j,_i in _default_inds:
@@ -234,13 +209,12 @@ def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
 def peak2det(peaks):
     """
     convert peak array (merged with fpfs catalog) to detection array
+
     Parameters:
-    ----
-    peaks:  peak array
+        peaks (ndarray):  peak array
 
     Returns:
-    ----
-    out:    detection array
+        out (ndarray):    detection array
     """
     # prepare the output
 
