@@ -52,13 +52,14 @@ for (j,i) in _default_inds:
     _ncov_types.append(('pdet_N22cV%d%dr1' %(j,i),'>f8'))
     _ncov_types.append(('pdet_N22sV%d%dr2' %(j,i),'>f8'))
 
-def detect_coords(imgCov,thres):
+def detect_coords(imgCov,thres,thres2=0.):
     """
     detect peaks and return the coordinates (y,x)
 
     Parameters:
         imgCov (ndarray):       convolved image
         thres (float):          detection threshold
+        thres2 (float):         peak identification threshold
 
     Returns:
         coord_array (ndarray):  ndarray of coordinates (y,x)
@@ -70,23 +71,24 @@ def detect_coords(imgCov,thres):
     footprint[2, 2] = 0
     footprint[2, 0] = 0
     filtered=   ndi.maximum_filter(imgCov,footprint=footprint,mode='constant')
-    data    =   np.int_(np.asarray(np.where(((imgCov > filtered)&(imgCov>thres)))))
+    data    =   np.int_(np.asarray(np.where(((imgCov > filtered+thres2)&(imgCov>thres)))))
     out     =   np.array(np.zeros(data.size//2),dtype=[('pdet_y','i4'),('pdet_x','i4')])
     out['pdet_y']=data[0]
     out['pdet_x']=data[1]
     ny,nx = imgCov.shape
-    msk   = (out['pdet_y']>20)&(out['pdet_y']<ny-20)\
+    # avoid pixels near boundary
+    msk     =   (out['pdet_y']>20)&(out['pdet_y']<ny-20)\
                 &(out['pdet_x']>20)&(out['pdet_x']<nx-20)
     coord_array= out[msk]
     return coord_array
 
-def get_shear_response(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=None):
+def get_shear_response(imgData,psfData,gsigma,thres=0.01,coords=None):
     """
     Get the shear response for pixels identified as peaks
     Parameters:
         imgData (ndarray):      observed image [ndarray]
         psfData (ndarray):      PSF image center at middle [ndarray]
-        gsigma (float):         sigma of the Gaussian smoothing kernel [float]
+        gsigma (float):         sigma of the Gaussian smoothing kernel in Fourier space [float]
         thres (float):          detection threshold
 
     Returns:
@@ -127,7 +129,7 @@ def get_shear_response(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=None):
     peak_array  =   _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
     return peak_array
 
-def get_shear_response_rfft(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=None):
+def get_shear_response_rfft(imgData,psfData,gsigma,thres=0.01,coords=None):
     """
     Get the shear response for pixels identified as peaks.
     This fucntion ueses np.fft.rfft2 instead of np.fft.fft2
@@ -161,11 +163,11 @@ def get_shear_response_rfft(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=Non
     del imgFQ1,imgFQ2 # these images take a lot of memory
     # D
     imgFD1  =   imgF*(-1j*k1grid)
-    imgFD2  =   imgF*(-1j*k2grid)
     imgCovD1=   np.fft.irfft2(imgFD1,(ny,nx))
+    del imgFD1
+    imgFD2  =   imgF*(-1j*k2grid)
     imgCovD2=   np.fft.irfft2(imgFD2,(ny,nx))
-    del imgFD1,imgFD2,imgF,k1grid,k2grid # these images take a lot of memory
-    gc.collect()
+    del imgFD2,imgF,k1grid,k2grid # these images take a lot of memory
 
     if coords is None:
         # the coordinates is not given, so we do another detection
@@ -173,7 +175,7 @@ def get_shear_response_rfft(imgData,psfData,gsigma=_gsigma,thres=0.01,coords=Non
             raise ValueError('thres must be float, but now got %s' %type(thres))
         coords  =   detect_coords(imgCov,thres)
     peak_array  =   _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
-
+    del coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2
     return peak_array
 
 def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
