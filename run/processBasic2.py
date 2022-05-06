@@ -23,7 +23,6 @@
 # python lib
 import os
 import gc
-# import psutil
 import pdet
 import numpy as np
 from fpfs import simutil
@@ -59,7 +58,7 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     galDir      = pexConfig.Field(
         dtype=str,
-        default="galaxy_basic2Center_psf60",#"small2_psf60",
+        default="galaxy_basic2Shift_psf60",#"small2_psf60",
         doc="Input galaxy directory"
     )
     noiName     = pexConfig.Field(
@@ -86,7 +85,7 @@ class processBasicDriverConfig(pexConfig.Config):
         self.readDataSim.doAddFP=   False
         psfFWHM =   self.galDir.split('_psf')[-1]
         gnm     =   self.galDir.split('galaxy_')[-1].split('_psf')[0]
-        self.outDir  =  os.path.join(self.outDir,'src_%s-%s' %(gnm,self.noiName),'psf%s'%(psfFWHM))
+        self.outDir  =  os.path.join(self.outDir,'srcfs_%s-%s' %(gnm,self.noiName),'psf%s'%(psfFWHM))
         self.galDir  =  os.path.join(self.inDir,self.galDir)
 
     def validate(self):
@@ -207,11 +206,12 @@ class processBasicDriverTask(BatchPoolTask):
             powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
             powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
             powModel[0] =   powIn
-            fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta,det_gsigma=gsigma)
+            fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta)
         else:
             noiVar      =   1e-20
             self.log.info('We are using noiseless setup')
-            fpTask      =   fpfsBase.fpfsTask(psfData2,beta=beta,det_gsigma=None)
+            # by default noiFit=None
+            fpTask      =   fpfsBase.fpfsTask(psfData2,beta=beta)
             noiData     =   None
 
         # isList        =   ['g1-0000','g2-0000','g1-2222','g2-2222']
@@ -238,8 +238,10 @@ class processBasicDriverTask(BatchPoolTask):
                 gc.collect()
             else:
                 self.log.info('Skip HSM measurement: %04d, %s' %(nid,ishear))
-            pp  =   'cut%d' %rcut
-            # pp  =   'det' # run real detection
+            if False:
+                pp  =   'cut%d' %rcut
+            else:
+                pp  =   'det' # run real detection
             outFname    =   os.path.join(cache.outDir,'fpfs-%s-%04d-%s.fits' %(pp,nid,ishear))
             if not os.path.exists(outFname) and cache.doFPFS:
                 self.log.info('FPFS measurement: %04d, %s' %(nid,ishear))
@@ -255,7 +257,7 @@ class processBasicDriverTask(BatchPoolTask):
                 else:
                     coords  =   None
                 out1    =   pdet.get_shear_response_rfft(galData,psfData3,gsigma=gsigma,\
-                            coords=coords,thres=np.sqrt(noiVar)*3.5)
+                            coords=coords,thres=np.sqrt(noiVar)*1.5)
                 self.log.info('number of sources: %d' %len(out1))
                 imgList =   [galData[cc['pdet_y']-rcut:cc['pdet_y']+rcut,\
                             cc['pdet_x']-rcut:cc['pdet_x']+rcut] for cc in out1]
