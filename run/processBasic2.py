@@ -63,8 +63,8 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     noiName     = pexConfig.Field(
         dtype=str,
-        default="var4em3",
-        # default="var0em0",
+        # default="var4em3",
+        default="var0em0",
         doc="noise variance name"
     )
     inDir       = pexConfig.Field(
@@ -85,7 +85,7 @@ class processBasicDriverConfig(pexConfig.Config):
         self.readDataSim.doAddFP=   False
         psfFWHM =   self.galDir.split('_psf')[-1]
         gnm     =   self.galDir.split('galaxy_')[-1].split('_psf')[0]
-        self.outDir  =  os.path.join(self.outDir,'src_%s-%s' %(gnm,self.noiName),'psf%s'%(psfFWHM))
+        self.outDir  =  os.path.join(self.outDir,'srcfs_%s-%s' %(gnm,self.noiName),'psf%s'%(psfFWHM))
         self.galDir  =  os.path.join(self.inDir,self.galDir)
 
     def validate(self):
@@ -152,7 +152,7 @@ class processBasicDriverTask(BatchPoolTask):
         # FPFS Basic
         beta        =   0.75
         # gsigma    =   6.*2.*np.pi/64. # try1 --- this is very unstable
-        gsigma      =   3.*2.*np.pi/64.  # try2
+        # gsigma    =   3.*2.*np.pi/64. # try2
         rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
@@ -206,14 +206,15 @@ class processBasicDriverTask(BatchPoolTask):
             powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
             powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
             powModel[0] =   powIn
-            fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta,det_gsigma=gsigma)
+            fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta)
         else:
             noiVar      =   1e-20
             self.log.info('We are using noiseless setup')
             # by default noiFit=None
-            fpTask      =   fpfsBase.fpfsTask(psfData2,beta=beta,det_gsigma=None)
+            fpTask      =   fpfsBase.fpfsTask(psfData2,beta=beta)
             noiData     =   None
 
+        self.log.info('%s' %fpTask.sigmaF)
         # isList        =   ['g1-0000','g2-0000','g1-2222','g2-2222']
         # isList        =   ['g1-1111']
         isList          =   ['g1-0000','g1-2222']
@@ -256,8 +257,9 @@ class processBasicDriverTask(BatchPoolTask):
                     del indX,indY,inds
                 else:
                     coords  =   None
-                out1    =   pdet.get_shear_response_rfft(galData,psfData3,gsigma=gsigma,\
-                            coords=coords,thres=np.sqrt(noiVar)*1.5)
+                thres   =   np.max(np.sqrt(noiVar)*2.5,0.05)
+                out1    =   pdet.get_shear_response_rfft(galData,psfData3,gsigma=fpTask.sigmaF,\
+                            coords=coords,thres=thres)
                 gc.collect()
                 self.log.info('number of sources: %d' %len(out1))
                 imgList =   [galData[cc['pdet_y']-rcut:cc['pdet_y']+rcut,\
