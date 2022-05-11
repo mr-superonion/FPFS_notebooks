@@ -23,7 +23,6 @@ import gc
 import logging
 import numpy as np
 import scipy.ndimage as ndi
-import numpy.lib.recfunctions as rfn
 
 from fpfs.imgutil import gauss_kernel
 
@@ -32,13 +31,16 @@ from fpfs.imgutil import gauss_kernel
 logging.info('pdet uses 4 neighboring pixels for detection.')
 # 3x3 pixels
 _default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
-_peak_types=[('pdet_f12','f8'), ('pdet_f21','f8'),  ('pdet_f22','f8'),\
+_peak_types=[('pdet_x','i4'), ('pdet_y','i4'),
+            ('pdet_f12','f8'), ('pdet_f21','f8'),  ('pdet_f22','f8'),\
             ('pdet_f23','f8'),  ('pdet_f32','f8'),\
             ('pdet_f12r1','f8'),('pdet_f21r1','f8'),('pdet_f22r1','f8'),\
             ('pdet_f23r1','f8'),('pdet_f32r1','f8'),\
             ('pdet_f12r2','f8'),('pdet_f21r2','f8'),('pdet_f22r2','f8'),\
             ('pdet_f23r2','f8'),('pdet_f32r2','f8')]
-_pdet_types=[('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
+
+_pdet_types=[ ('pdet_x','i4'), ('pdet_y','i4'),
+            ('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
             ('pdet_v23','f8'),  ('pdet_v32','f8'),\
             ('pdet_v12r1','f8'),('pdet_v21r1','f8'),('pdet_v22r1','f8'),\
             ('pdet_v23r1','f8'),('pdet_v32r1','f8'),\
@@ -59,7 +61,7 @@ def detect_coords(imgCov,thres,thres2=0.):
     Parameters:
         imgCov (ndarray):       convolved image
         thres (float):          detection threshold
-        thres2 (float):         peak identification threshold
+        thres2 (float):         peak identification difference threshold
 
     Returns:
         coord_array (ndarray):  ndarray of coordinates (y,x)
@@ -82,7 +84,7 @@ def detect_coords(imgCov,thres,thres2=0.):
     coord_array= out[msk]
     return coord_array
 
-def get_shear_response(imgData,psfData,gsigma,thres=0.01,coords=None):
+def get_shear_response(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.,coords=None):
     """
     Get the shear response for pixels identified as peaks
     Parameters:
@@ -90,6 +92,9 @@ def get_shear_response(imgData,psfData,gsigma,thres=0.01,coords=None):
         psfData (ndarray):      PSF image center at middle [ndarray]
         gsigma (float):         sigma of the Gaussian smoothing kernel in Fourier space [float]
         thres (float):          detection threshold
+        thres2 (float):         peak identification difference threshold
+        klim (float):           limiting wave number in Fourier space
+        coords (ndarray):       coordinates (x,y)
 
     Returns:
         peak_array (ndarray):   peak values and the shear responses
@@ -105,7 +110,19 @@ def get_shear_response(imgData,psfData,gsigma,thres=0.01,coords=None):
     # convolved images
     imgF    =   np.fft.fft2(imgData)/psfF*gKer
     del psfF,psfData
+    if klim>0.:
+        # apply a truncation in Fourier space
+        nxklim  =   int(klim*nx/np.pi/2.+0.5)
+        nyklim  =   int(klim*ny/np.pi/2.+0.5)
+        imgF[:ny//2-nyklim,:]    =    0.
+        imgF[ny//2+nyklim+1:,:]    =    0.
+        imgF[:,:nx//2-nxklim]    =    0.
+        imgF[:,nx//2+nxklim+1:]    =    0.
+    else:
+        # no truncation in Fourier space
+        pass
     imgCov  =   np.fft.ifft2(imgF).real
+
     # Q
     imgFQ1  =   imgF*(k1grid**2.-k2grid**2.)/gsigma**2.
     imgFQ2  =   imgF*(2.*k1grid*k2grid)/gsigma**2.
@@ -125,11 +142,11 @@ def get_shear_response(imgData,psfData,gsigma,thres=0.01,coords=None):
         # the coordinates is not given, so we do another detection
         if not isinstance(thres,(int, np.floating)):
             raise ValueError('thres must be float, but now got %s' %type(thres))
-        coords  =   detect_coords(imgCov,thres)
+        coords  =   detect_coords(imgCov,thres,thres2)
     peak_array  =   _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
     return peak_array
 
-def get_shear_response_rfft(imgData,psfData,gsigma,thres=0.01,coords=None):
+def get_shear_response_rfft(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1,coords=None):
     """
     Get the shear response for pixels identified as peaks.
     This fucntion ueses np.fft.rfft2 instead of np.fft.fft2
@@ -140,6 +157,9 @@ def get_shear_response_rfft(imgData,psfData,gsigma,thres=0.01,coords=None):
         psfData (ndarray):      PSF image (the average PSF of the exposure)
         gsigma (float):         sigma of the Gaussian smoothing kernel in Fourier space
         thres (float):          detection threshold
+        thres2 (float):         peak identification difference threshold
+        klim (float):           limiting wave number in Fourier space
+        coords (ndarray):       coordinates of detected peaks (x,y)
 
     Returns:
         peak_array (ndarray):   peak values and the shear responses
@@ -153,6 +173,15 @@ def get_shear_response_rfft(imgData,psfData,gsigma,thres=0.01,coords=None):
 
     # convolved images
     imgF    =   np.fft.rfft2(imgData)/psfF*gKer
+    if klim>0.:
+        # apply a truncation in Fourier space
+        nxklim  =   int(klim*nx/np.pi/2.+0.5)
+        nyklim  =   int(klim*ny/np.pi/2.+0.5)
+        imgF[nyklim+1:-nyklim,:] = 0.
+        imgF[:,nxklim+1:] = 0.
+    else:
+        # no truncation in Fourier space
+        pass
     del psfF,psfData
     imgCov  =   np.fft.irfft2(imgF,(ny,nx))
     # Q
@@ -173,7 +202,7 @@ def get_shear_response_rfft(imgData,psfData,gsigma,thres=0.01,coords=None):
         # the coordinates is not given, so we do another detection
         if not isinstance(thres,(int, float)):
             raise ValueError('thres must be float, but now got %s' %type(thres))
-        coords  =   detect_coords(imgCov,thres)
+        coords  =   detect_coords(imgCov,thres,thres2)
     peak_array  =   _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2)
     del coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2
     return peak_array
@@ -205,7 +234,8 @@ def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
         _r2 = imgCovQ2[_y,_x]+(_j-2.)*imgCovD1[_y,_x]+(_i-2.)*imgCovD2[_y,_x]
         out['pdet_f%d%dr1' %(_j,_i)]=_r1
         out['pdet_f%d%dr2' %(_j,_i)]=_r2
-    out     =   rfn.merge_arrays([coords,out], flatten = True, usemask = False)
+    out['pdet_x']=coords['pdet_x']
+    out['pdet_y']=coords['pdet_y']
     return out
 
 def peak2det(peaks):
@@ -269,4 +299,6 @@ def peak2det(peaks):
                 out[onm3] = peaks[inm3]
                 out[onm4] = peaks[inm4]
             del inm1,onm1,inm2,onm2,inm3,onm3,inm4,onm4
+    out['pdet_x']= peaks['pdet_x']
+    out['pdet_y']= peaks['pdet_y']
     return out
