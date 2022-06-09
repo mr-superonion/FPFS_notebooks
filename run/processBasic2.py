@@ -63,8 +63,9 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     noiName     = pexConfig.Field(
         dtype=str,
-        # default="var4em3",
-        default="var8em3",
+        # default="var1em9",
+        default="var0em0",
+        # default="var8em3",
         doc="noise variance name"
     )
     inDir       = pexConfig.Field(
@@ -86,7 +87,7 @@ class processBasicDriverConfig(pexConfig.Config):
         tname   =   'try4'
         psfFWHM =   self.galDir.split('_psf')[-1]
         gnm     =   self.galDir.split('galaxy_')[-1].split('_psf')[0]
-        self.outDir  =  os.path.join(self.outDir,'srcfs_%s-%s_%s' %(gnm,self.noiName,tname),'psf%s'%(psfFWHM))
+        self.outDir  =  os.path.join(self.outDir,'srcfs2_%s-%s_%s' %(gnm,self.noiName,tname),'psf%s'%(psfFWHM))
         self.galDir  =  os.path.join(self.inDir,self.galDir)
 
     def validate(self):
@@ -232,7 +233,7 @@ class processBasicDriverTask(BatchPoolTask):
             outFname    =   os.path.join(cache.outDir,'src-%04d-%s.fits' %(nid,ishear))
             if not os.path.exists(outFname) and cache.doHSM:
                 self.log.info('HSM measurement: %04d, %s' %(nid,ishear))
-                exposure=   simutil.makeHSCExposure(galData,psfData,pixScale,noiVar)
+                exposure=   simutil.makeLsstExposure(galData,psfData,pixScale,noiVar)
                 src     =   self.readDataSim.measureSource(exposure)
                 wFlag   =   afwTable.SOURCE_IO_NO_FOOTPRINTS
                 src.writeFits(outFname,flags=wFlag)
@@ -240,7 +241,7 @@ class processBasicDriverTask(BatchPoolTask):
                 gc.collect()
             else:
                 self.log.info('Skip HSM measurement: %04d, %s' %(nid,ishear))
-            if False:
+            if True:
                 pp  =   'cut%d' %rcut
             else:
                 pp  =   'det' # run real detection
