@@ -24,9 +24,8 @@
 import os
 import gc
 import pdet
+import fpfs
 import numpy as np
-from fpfs import simutil
-from fpfs import fpfsBase
 import astropy.io.fits as pyfits
 import numpy.lib.recfunctions as rfn
 from lsst.utils.timer import timeMethod
@@ -208,15 +207,15 @@ class processBasicDriverTask(BatchPoolTask):
             powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
             powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
             powModel[0] =   powIn
-            fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta)
+            fpTask      =   fpfs.base.fpfsTask(psfData2,noiFit=powModel[0],beta=beta)
         else:
             noiVar      =   1e-20
             self.log.info('We are using noiseless setup')
             # by default noiFit=None
-            fpTask      =   fpfsBase.fpfsTask(psfData2,beta=beta)
+            fpTask      =   fpfs.base.fpfsTask(psfData2,beta=beta)
             noiData     =   None
         # self.log.info('%s' %(fpTask.klim/fpTask._dk))
-        # self.log.info('%s' %fpTask.sigmaF)
+        self.log.info('%s' %fpTask.sigmaF)
         # isList        =   ['g1-0000','g2-0000','g1-2222','g2-2222']
         # isList        =   ['g1-1111']
         isList          =   ['g1-0000','g1-2222']
@@ -233,7 +232,7 @@ class processBasicDriverTask(BatchPoolTask):
             outFname    =   os.path.join(cache.outDir,'src-%04d-%s.fits' %(nid,ishear))
             if not os.path.exists(outFname) and cache.doHSM:
                 self.log.info('HSM measurement: %04d, %s' %(nid,ishear))
-                exposure=   simutil.makeLsstExposure(galData,psfData,pixScale,noiVar)
+                exposure=   fpfs.simutil.makeLsstExposure(galData,psfData,pixScale,noiVar)
                 src     =   self.readDataSim.measureSource(exposure)
                 wFlag   =   afwTable.SOURCE_IO_NO_FOOTPRINTS
                 src.writeFits(outFname,flags=wFlag)
@@ -253,9 +252,9 @@ class processBasicDriverTask(BatchPoolTask):
                     indX    =   np.arange(32,ngrid2,64)
                     indY    =   np.arange(32,ngrid2,64)
                     inds    =   np.meshgrid(indY,indX,indexing='ij')
-                    coords  =   np.array(np.zeros(inds[0].size),dtype=[('pdet_y','i4'),('pdet_x','i4')])
-                    coords['pdet_y']=   np.ravel(inds[0])
-                    coords['pdet_x']=   np.ravel(inds[1])
+                    coords  =   np.array(np.zeros(inds[0].size),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
+                    coords['fpfs_y']=   np.ravel(inds[0])
+                    coords['fpfs_x']=   np.ravel(inds[1])
                     del indX,indY,inds
                 else:
                     coords  =   None
@@ -264,8 +263,8 @@ class processBasicDriverTask(BatchPoolTask):
                             thres=thres,thres2=-0.004,klim=fpTask.klim,coords=coords)
                 gc.collect()
                 self.log.info('number of sources: %d' %len(out1))
-                imgList =   [galData[cc['pdet_y']-rcut:cc['pdet_y']+rcut,\
-                            cc['pdet_x']-rcut:cc['pdet_x']+rcut] for cc in out1]
+                imgList =   [galData[cc['fpfs_y']-rcut:cc['fpfs_y']+rcut,\
+                            cc['fpfs_x']-rcut:cc['fpfs_x']+rcut] for cc in out1]
                 out     =   fpTask.measure(imgList)
                 out     =   rfn.merge_arrays([out,out1],flatten=True,usemask=False)
                 pyfits.writeto(outFname,out)

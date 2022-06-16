@@ -31,28 +31,28 @@ from fpfs.imgutil import gauss_kernel
 logging.info('pdet uses 4 neighboring pixels for detection.')
 # 3x3 pixels
 _default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
-_peak_types=[('pdet_x','i4'), ('pdet_y','i4'),
-            ('pdet_f12','f8'), ('pdet_f21','f8'),  ('pdet_f22','f8'),\
-            ('pdet_f23','f8'),  ('pdet_f32','f8'),\
-            ('pdet_f12r1','f8'),('pdet_f21r1','f8'),('pdet_f22r1','f8'),\
-            ('pdet_f23r1','f8'),('pdet_f32r1','f8'),\
-            ('pdet_f12r2','f8'),('pdet_f21r2','f8'),('pdet_f22r2','f8'),\
-            ('pdet_f23r2','f8'),('pdet_f32r2','f8')]
+_peak_types=[('fpfs_x','i4'), ('fpfs_y','i4'),
+            ('fpfs_f12','f8'), ('fpfs_f21','f8'),  ('fpfs_f22','f8'),\
+            ('fpfs_f23','f8'),  ('fpfs_f32','f8'),\
+            ('fpfs_f12r1','f8'),('fpfs_f21r1','f8'),('fpfs_f22r1','f8'),\
+            ('fpfs_f23r1','f8'),('fpfs_f32r1','f8'),\
+            ('fpfs_f12r2','f8'),('fpfs_f21r2','f8'),('fpfs_f22r2','f8'),\
+            ('fpfs_f23r2','f8'),('fpfs_f32r2','f8')]
 
-_pdet_types=[ ('pdet_x','i4'), ('pdet_y','i4'),
-            ('pdet_v12','f8'), ('pdet_v21','f8'),  ('pdet_v22','f8'),\
-            ('pdet_v23','f8'),  ('pdet_v32','f8'),\
-            ('pdet_v12r1','f8'),('pdet_v21r1','f8'),('pdet_v22r1','f8'),\
-            ('pdet_v23r1','f8'),('pdet_v32r1','f8'),\
-            ('pdet_v12r2','f8'),('pdet_v21r2','f8'),('pdet_v22r2','f8'),\
-            ('pdet_v23r2','f8'),('pdet_v32r2','f8')]
+_fpfs_types=[ ('fpfs_x','i4'), ('fpfs_y','i4'),
+            ('fpfs_v12','f8'), ('fpfs_v21','f8'),  ('fpfs_v22','f8'),\
+            ('fpfs_v23','f8'),  ('fpfs_v32','f8'),\
+            ('fpfs_v12r1','f8'),('fpfs_v21r1','f8'),('fpfs_v22r1','f8'),\
+            ('fpfs_v23r1','f8'),('fpfs_v32r1','f8'),\
+            ('fpfs_v12r2','f8'),('fpfs_v21r2','f8'),('fpfs_v22r2','f8'),\
+            ('fpfs_v23r2','f8'),('fpfs_v32r2','f8')]
 
 _ncov_types=[]
 for (j,i) in _default_inds:
-    _ncov_types.append(('pdet_N00V%d%dr1'  %(j,i),'>f8'))
-    _ncov_types.append(('pdet_N00V%d%dr2'  %(j,i),'>f8'))
-    _ncov_types.append(('pdet_N22cV%d%dr1' %(j,i),'>f8'))
-    _ncov_types.append(('pdet_N22sV%d%dr2' %(j,i),'>f8'))
+    _ncov_types.append(('fpfs_N00V%d%dr1'  %(j,i),'>f8'))
+    _ncov_types.append(('fpfs_N00V%d%dr2'  %(j,i),'>f8'))
+    _ncov_types.append(('fpfs_N22cV%d%dr1' %(j,i),'>f8'))
+    _ncov_types.append(('fpfs_N22sV%d%dr2' %(j,i),'>f8'))
 
 def detect_coords(imgCov,thres,thres2=0.):
     """
@@ -74,13 +74,13 @@ def detect_coords(imgCov,thres,thres2=0.):
     footprint[2, 0] = 0
     filtered=   ndi.maximum_filter(imgCov,footprint=footprint,mode='constant')
     data    =   np.int_(np.asarray(np.where(((imgCov > filtered+thres2)&(imgCov>thres)))))
-    out     =   np.array(np.zeros(data.size//2),dtype=[('pdet_y','i4'),('pdet_x','i4')])
-    out['pdet_y']=data[0]
-    out['pdet_x']=data[1]
+    out     =   np.array(np.zeros(data.size//2),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
+    out['fpfs_y']=data[0]
+    out['fpfs_x']=data[1]
     ny,nx = imgCov.shape
     # avoid pixels near boundary
-    msk     =   (out['pdet_y']>20)&(out['pdet_y']<ny-20)\
-                &(out['pdet_x']>20)&(out['pdet_x']<nx-20)
+    msk     =   (out['fpfs_y']>20)&(out['fpfs_y']<ny-20)\
+                &(out['fpfs_x']>20)&(out['fpfs_x']<nx-20)
     coord_array= out[msk]
     return coord_array
 
@@ -225,17 +225,17 @@ def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
     out     =   np.array(np.zeros(coords.size),dtype=_peak_types)
     for _j,_i in _default_inds:
         # the smoothed pixel value
-        _y  = coords['pdet_y']+_j-2
-        _x  = coords['pdet_x']+_i-2
+        _y  = coords['fpfs_y']+_j-2
+        _x  = coords['fpfs_x']+_i-2
         _v  = imgCov[_y,_x]
-        out['pdet_f%d%d' %(_j,_i)]=_v
+        out['fpfs_f%d%d' %(_j,_i)]=_v
         # responses for the smoothed pixel value
         _r1 = imgCovQ1[_y,_x]+(_i-2.)*imgCovD1[_y,_x]-(_j-2.)*imgCovD2[_y,_x]
         _r2 = imgCovQ2[_y,_x]+(_j-2.)*imgCovD1[_y,_x]+(_i-2.)*imgCovD2[_y,_x]
-        out['pdet_f%d%dr1' %(_j,_i)]=_r1
-        out['pdet_f%d%dr2' %(_j,_i)]=_r2
-    out['pdet_x']=coords['pdet_x']
-    out['pdet_y']=coords['pdet_y']
+        out['fpfs_f%d%dr1' %(_j,_i)]=_r1
+        out['fpfs_f%d%dr2' %(_j,_i)]=_r2
+    out['fpfs_x']=coords['fpfs_x']
+    out['fpfs_y']=coords['fpfs_y']
     return out
 
 def peak2det(peaks):
@@ -250,28 +250,28 @@ def peak2det(peaks):
     """
     # prepare the output
 
-    if 'pdet_N22sF22r2' in peaks.dtype.names:
+    if 'fpfs_N22sF22r2' in peaks.dtype.names:
         noicov  =   True
-        out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types+_ncov_types)
+        out     =   np.array(np.zeros(peaks.size),dtype=_fpfs_types+_ncov_types)
     else:
         noicov=False
-        out     =   np.array(np.zeros(peaks.size),dtype=_pdet_types)
+        out     =   np.array(np.zeros(peaks.size),dtype=_fpfs_types)
 
     # column name for noise covariance for pixel values
-    inm10   =   'pdet_N22cF22r1'
-    inm20   =   'pdet_N22sF22r2'
-    inm30   =   'pdet_N00F22r1'
-    inm40   =   'pdet_N00F22r2'
+    inm10   =   'fpfs_N22cF22r1'
+    inm20   =   'fpfs_N22sF22r2'
+    inm30   =   'fpfs_N00F22r1'
+    inm40   =   'fpfs_N00F22r2'
 
     # v and two components of shear response (vr1, vr2)
     rlist   =   ['', 'r1', 'r2']
-    fnmv0   =   'pdet_f22%s'
+    fnmv0   =   'fpfs_f22%s'
     for ind in _default_inds:
         # the shear response of detection modes
         for rr in rlist:
             # get the detection modes from the pixel values
-            fnmv =  'pdet_f%d%d%s'  %(ind+(rr,))
-            cnmv =  'pdet_v%d%d%s'  %(ind+(rr,))
+            fnmv =  'fpfs_f%d%d%s'  %(ind+(rr,))
+            cnmv =  'fpfs_v%d%d%s'  %(ind+(rr,))
             fnmv22= fnmv0 %(rr)
             if ind  !=  (2,2):
                 out[cnmv] = peaks[fnmv22]-peaks[fnmv]
@@ -280,14 +280,14 @@ def peak2det(peaks):
             del fnmv,cnmv,fnmv22
 
         if noicov:
-            inm1    =   'pdet_N22cF%d%dr1' %ind
-            onm1    =   'pdet_N22cV%d%dr1' %ind
-            inm2    =   'pdet_N22sF%d%dr2' %ind
-            onm2    =   'pdet_N22sV%d%dr2' %ind
-            inm3    =   'pdet_N00F%d%dr1' %ind
-            onm3    =   'pdet_N00V%d%dr1' %ind
-            inm4    =   'pdet_N00F%d%dr2' %ind
-            onm4    =   'pdet_N00V%d%dr2' %ind
+            inm1    =   'fpfs_N22cF%d%dr1' %ind
+            onm1    =   'fpfs_N22cV%d%dr1' %ind
+            inm2    =   'fpfs_N22sF%d%dr2' %ind
+            onm2    =   'fpfs_N22sV%d%dr2' %ind
+            inm3    =   'fpfs_N00F%d%dr1' %ind
+            onm3    =   'fpfs_N00V%d%dr1' %ind
+            inm4    =   'fpfs_N00F%d%dr2' %ind
+            onm4    =   'fpfs_N00V%d%dr2' %ind
             if ind  !=  (2,2):
                 out[onm1] = peaks[inm10]-peaks[inm1]
                 out[onm2] = peaks[inm20]-peaks[inm2]
@@ -299,6 +299,6 @@ def peak2det(peaks):
                 out[onm3] = peaks[inm3]
                 out[onm4] = peaks[inm4]
             del inm1,onm1,inm2,onm2,inm3,onm3,inm4,onm4
-    out['pdet_x']= peaks['pdet_x']
-    out['pdet_y']= peaks['pdet_y']
+    out['fpfs_x']= peaks['fpfs_x']
+    out['fpfs_y']= peaks['fpfs_y']
     return out

@@ -17,10 +17,12 @@
 #
 # python lib
 
+import fpfs
 import pdet
 import numpy as np
 import astropy.io.fits as pyfits
-from fpfs import simutil
+
+
 
 def test_centerref(ishear=1):
     """
@@ -30,10 +32,10 @@ def test_centerref(ishear=1):
     """
     ngrid   =   64
     ngal    =   10
-    img1    =   simutil.make_basic_sim('basicCenter_psf60','g%d-0000' %ishear,0,\
-                ny=ngal,nx=ngal,do_write=False)
-    img2    =   simutil.make_basic_sim('basicCenter_psf60','g%d-2222' %ishear,0,\
-                ny=ngal,nx=ngal,do_write=False)
+    img1    =   fpfs.simutil.make_basic_sim('basicCenter2_psf60','g%d-0000' %ishear,0,\
+                ny=ngal,nx=ngal,do_write=False,return_array=True)
+    img2    =   fpfs.simutil.make_basic_sim('basicCenter2_psf60','g%d-2222' %ishear,0,\
+                ny=ngal,nx=ngal,do_write=False,return_array=True)
     ngrid2  =   ngrid*ngal
     # PSF
     psf     =   pyfits.getdata('psf-60.fits')
@@ -45,18 +47,18 @@ def test_centerref(ishear=1):
     indX    =   np.arange(32,ngal*64,64)
     indY    =   np.arange(32,ngal*64,64)
     inds    =   np.meshgrid(indY,indX,indexing='ij')
-    coords  = np.array(np.zeros(inds[0].size),dtype=[('pdet_y','i4'),('pdet_x','i4')])
-    coords['pdet_y']=   np.ravel(inds[0])
-    coords['pdet_x']=   np.ravel(inds[1])
+    coords  = np.array(np.zeros(inds[0].size),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
+    coords['fpfs_y']=   np.ravel(inds[0])
+    coords['fpfs_x']=   np.ravel(inds[1])
 
     out1=pdet.get_shear_response_rfft(img1,psfData,gsigma=gsigma,coords=coords)
     out2=pdet.get_shear_response_rfft(img2,psfData,gsigma=gsigma,coords=coords)
-    for j in range(1,4):
-        for i in range(1,4):
-            resEst 	= 	(out2['pdet_v%d%d' %(j,i)]-out1['pdet_v%d%d'%(j,i)])/0.04
-            res 	= 	(out2['pdet_v%d%dr%d'%(j,i,ishear)]+out1['pdet_v%d%dr%d'%(j,i,ishear)])/2.
-            _ 		= 	np.average((res-resEst)/np.abs(resEst))
-            np.testing.assert_almost_equal(_,0,3)
+    for (j,i) in fpfs.base.det_inds:
+        resEst 	= 	(out2['fpfs_f%d%d' %(j,i)]-out1['fpfs_f%d%d'%(j,i)])/0.04
+        res 	= 	(out2['fpfs_f%d%dr%d'%(j,i,ishear)]+out1['fpfs_f%d%dr%d'%(j,i,ishear)])/2.
+        mask    =   np.abs(resEst)>np.average(np.abs(resEst))/8.
+        _ 		= 	np.average((res-resEst)/np.abs(resEst),weights=mask.astype(float))
+        np.testing.assert_almost_equal(_,0,3)
     return
 
 if __name__ == '__main__':

@@ -58,7 +58,7 @@ def get_detbias(ells,w_sel,icut,isig,ind,use_sig=False):
         cor1 (float):       correction for shear1
         cor2 (float):       correction for shear2
     """
-    fnmv   =  'pdet_v%d%d'  %ind
+    fnmv   =  'fpfs_v%d%d'  %ind
     fnmr1  =  'fpfs_e1v%d%dr1'%ind
     fnmr2  =  'fpfs_e2v%d%dr2'%ind
     if use_sig:
@@ -91,7 +91,7 @@ def get_detbias_list(ells,w_sel,indsl,cutsl,bcutl):
     cor1Sum=0.  # initialize the correction terms
     cor2Sum=0.
     for _ in range(ncut):
-        fnmv =  'pdet_v%d%d' %indsl[_]
+        fnmv =  'fpfs_v%d%d' %indsl[_]
         bcut  =  bcutl[_]
         icut  =  cutsl[_]
         print('apply cut on %s at %.3f' %(fnmv,icut))

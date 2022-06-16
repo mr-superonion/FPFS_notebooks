@@ -18,9 +18,8 @@
 # python lib
 
 import pdet
+import fpfs
 import numpy as np
-from fpfs import simutil
-from fpfs import fpfsBase
 import astropy.io.fits as pyfits
 import numpy.lib.recfunctions as rfn
 
@@ -32,8 +31,8 @@ def test_peak2det():
     """
     ngal    =   1
     ngrid   =   64
-    img    =   simutil.make_basic_sim('basicCenter_psf60','g1-0000',0,\
-                ny=ngal,nx=ngal,do_write=False)
+    img     =   fpfs.simutil.make_basic_sim('basicCenter_psf60','g1-0000',0,\
+                ny=ngal,nx=ngal,do_write=False,return_array=True)
     ngrid2  =   ngrid*ngal
     rcut    =   16
     beg     =   ngrid//2-rcut
@@ -46,30 +45,30 @@ def test_peak2det():
     npad    =   (ngrid2-psf.shape[0])//2
     psfData =   np.pad(psf,(npad+1,npad),mode='constant')
     assert psfData.shape[0]==ngrid2
-    fpTask0=   fpfsBase.fpfsTask(psfData[beg:end,beg:end],beta=beta)
-    a0     =   fpTask0.measure(img[beg:end,beg:end])
+    fpTask0 =   fpfs.base.fpfsTask(psfData[beg:end,beg:end],beta=beta)
+    a0      =   fpTask0.measure(img[beg:end,beg:end])
 
     indX    =   np.arange(32,ngal*64,64)
     indY    =   np.arange(32,ngal*64,64)
     inds    =   np.meshgrid(indY,indX,indexing='ij')
-    coords  =   np.array(np.zeros(inds[0].size),dtype=[('pdet_y','i4'),('pdet_x','i4')])
-    coords['pdet_y']=   np.ravel(inds[0])
-    coords['pdet_x']=   np.ravel(inds[1])
+    coords  =   np.array(np.zeros(inds[0].size),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
+    coords['fpfs_y']=   np.ravel(inds[0])
+    coords['fpfs_x']=   np.ravel(inds[1])
 
     b0      =   pdet.get_shear_response_rfft(img,psfData,gsigma=gsigma,coords=coords)
     out0    =   rfn.merge_arrays([a0,b0],flatten=True,usemask=False)
     out1    =   pdet.peak2det(out0)
 
-    cnmv0   =   'pdet_f22'
-    cnmr10  =   'pdet_f22r1'
-    cnmr20  =   'pdet_f22r2'
+    cnmv0   =   'fpfs_f22'
+    cnmr10  =   'fpfs_f22r1'
+    cnmr20  =   'fpfs_f22r2'
     for ind in pdet._default_inds:
-        cnmv=   'pdet_f%d%d'  %ind
-        cnmr1=  'pdet_f%d%dr1'%ind
-        cnmr2=  'pdet_f%d%dr2'%ind
-        vnmv=   'pdet_v%d%d'  %ind
-        vnmr1=  'pdet_v%d%dr1'%ind
-        vnmr2=  'pdet_v%d%dr2'%ind
+        cnmv=   'fpfs_f%d%d'  %ind
+        cnmr1=  'fpfs_f%d%dr1'%ind
+        cnmr2=  'fpfs_f%d%dr2'%ind
+        vnmv=   'fpfs_v%d%d'  %ind
+        vnmr1=  'fpfs_v%d%dr1'%ind
+        vnmr2=  'fpfs_v%d%dr2'%ind
         if ind  !=  (2,2):
             _=out1[vnmv]-(out0[cnmv0]-out0[cnmv])
             np.testing.assert_almost_equal(_,0,4)
