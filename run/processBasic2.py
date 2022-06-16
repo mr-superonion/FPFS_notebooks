@@ -64,8 +64,8 @@ class processBasicDriverConfig(pexConfig.Config):
     noiName     = pexConfig.Field(
         dtype=str,
         # default="var1em9",
-        default="var0em0",
-        # default="var8em3",
+        # default="var0em0",
+        default="var4em3",
         doc="noise variance name"
     )
     inDir       = pexConfig.Field(
