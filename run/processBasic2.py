@@ -215,7 +215,7 @@ class processBasicDriverTask(BatchPoolTask):
             fpTask      =   fpfs.base.fpfsTask(psfData2,beta=beta)
             noiData     =   None
         # self.log.info('%s' %(fpTask.klim/fpTask._dk))
-        self.log.info('%s' %fpTask.sigmaF)
+        # self.log.info('%s' %fpTask.sigmaF)
         # isList        =   ['g1-0000','g2-0000','g1-2222','g2-2222']
         # isList        =   ['g1-1111']
         isList          =   ['g1-0000','g1-2222']
@@ -240,10 +240,7 @@ class processBasicDriverTask(BatchPoolTask):
                 gc.collect()
             else:
                 self.log.info('Skip HSM measurement: %04d, %s' %(nid,ishear))
-            if True:
-                pp  =   'cut%d' %rcut
-            else:
-                pp  =   'det' # run real detection
+            pp  =   'cut%d' %rcut
             outFname    =   os.path.join(cache.outDir,'fpfs-%s-%04d-%s.fits' %(pp,nid,ishear))
             if not os.path.exists(outFname) and cache.doFPFS:
                 self.log.info('FPFS measurement: %04d, %s' %(nid,ishear))
@@ -252,9 +249,9 @@ class processBasicDriverTask(BatchPoolTask):
                     indX    =   np.arange(32,ngrid2,64)
                     indY    =   np.arange(32,ngrid2,64)
                     inds    =   np.meshgrid(indY,indX,indexing='ij')
-                    coords  =   np.array(np.zeros(inds[0].size),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
-                    coords['fpfs_y']=   np.ravel(inds[0])
-                    coords['fpfs_x']=   np.ravel(inds[1])
+                    coords  =   np.array(np.zeros(inds[0].size),dtype=[('fpfs_peak_y','i4'),('fpfs_peak_x','i4')])
+                    coords['fpfs_peak_y']=   np.ravel(inds[0])
+                    coords['fpfs_peak_x']=   np.ravel(inds[1])
                     del indX,indY,inds
                 else:
                     coords  =   None
@@ -263,8 +260,8 @@ class processBasicDriverTask(BatchPoolTask):
                             thres=thres,thres2=-0.004,klim=fpTask.klim,coords=coords)
                 gc.collect()
                 self.log.info('number of sources: %d' %len(out1))
-                imgList =   [galData[cc['fpfs_y']-rcut:cc['fpfs_y']+rcut,\
-                            cc['fpfs_x']-rcut:cc['fpfs_x']+rcut] for cc in out1]
+                imgList =   [galData[cc['fpfs_peak_y']-rcut:cc['fpfs_peak_y']+rcut,\
+                            cc['fpfs_peak_x']-rcut:cc['fpfs_peak_x']+rcut] for cc in out1]
                 out     =   fpTask.measure(imgList)
                 out     =   rfn.merge_arrays([out,out1],flatten=True,usemask=False)
                 pyfits.writeto(outFname,out)
