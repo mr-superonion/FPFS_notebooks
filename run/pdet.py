@@ -26,12 +26,10 @@ import scipy.ndimage as ndi
 
 from fpfs.imgutil import gauss_kernel
 
-# _gsigma=3.*2*np.pi/64.
-
 logging.info('pdet uses 4 neighboring pixels for detection.')
 # 3x3 pixels
 _default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
-_peak_types=[('fpfs_peak_x','i4'), ('fpfs_peak_y','i4'),
+_peak_types=[('fpfs_x','i4'),   ('fpfs_y','i4'),
             ('fpfs_f12','<f8'), ('fpfs_f21','<f8'),  ('fpfs_f22','<f8'),\
             ('fpfs_f23','<f8'),  ('fpfs_f32','<f8'),\
             ('fpfs_f12r1','<f8'),('fpfs_f21r1','<f8'),('fpfs_f22r1','<f8'),\
@@ -39,9 +37,9 @@ _peak_types=[('fpfs_peak_x','i4'), ('fpfs_peak_y','i4'),
             ('fpfs_f12r2','<f8'),('fpfs_f21r2','<f8'),('fpfs_f22r2','<f8'),\
             ('fpfs_f23r2','<f8'),('fpfs_f32r2','<f8')]
 
-_fpfs_types=[ ('fpfs_peak_x','i4'), ('fpfs_peak_y','i4'),
+_fpfs_types=[('fpfs_x','i4'),   ('fpfs_y','i4'),
             ('fpfs_v12','<f8'), ('fpfs_v21','<f8'),  ('fpfs_v22','<f8'),\
-            ('fpfs_v23','<f8'),  ('fpfs_v32','<f8'),\
+            ('fpfs_v23','<f8'), ('fpfs_v32','<f8'),\
             ('fpfs_v12r1','<f8'),('fpfs_v21r1','<f8'),('fpfs_v22r1','<f8'),\
             ('fpfs_v23r1','<f8'),('fpfs_v32r1','<f8'),\
             ('fpfs_v12r2','<f8'),('fpfs_v21r2','<f8'),('fpfs_v22r2','<f8'),\
@@ -71,22 +69,22 @@ def detect_coords(imgCov,thres,thres2=0.):
     footprint[2, 0] = 0
     filtered=   ndi.maximum_filter(imgCov,footprint=footprint,mode='constant')
     data    =   np.int_(np.asarray(np.where(((imgCov > filtered+thres2)&(imgCov>thres)))))
-    out     =   np.array(np.zeros(data.size//2),dtype=[('fpfs_peak_y','i4'),('fpfs_peak_x','i4')])
-    out['fpfs_peak_y']=data[0]
-    out['fpfs_peak_x']=data[1]
+    out     =   np.array(np.zeros(data.size//2),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
+    out['fpfs_y']=data[0]
+    out['fpfs_x']=data[1]
     ny,nx = imgCov.shape
     # avoid pixels near boundary
-    msk     =   (out['fpfs_peak_y']>20)&(out['fpfs_peak_y']<ny-20)\
-                &(out['fpfs_peak_x']>20)&(out['fpfs_peak_x']<nx-20)
+    msk     =   (out['fpfs_y']>20)&(out['fpfs_y']<ny-20)\
+                &(out['fpfs_x']>20)&(out['fpfs_x']<nx-20)
     coord_array= out[msk]
     return coord_array
 
 def get_shear_response(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.,coords=None):
     """Returns the shear response for pixels identified as peaks
     Args:
-        imgData (ndarray):      observed image [ndarray]
-        psfData (ndarray):      PSF image center at middle [ndarray]
-        gsigma (float):         sigma of the Gaussian smoothing kernel in Fourier space [float]
+        imgData (ndarray):      observed image
+        psfData (ndarray):      PSF image center at middle
+        gsigma (float):         sigma of the Gaussian smoothing kernel in Fourier space
         thres (float):          detection threshold
         thres2 (float):         peak identification difference threshold
         klim (float):           limiting wave number in Fourier space
@@ -110,9 +108,9 @@ def get_shear_response(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.,c
         nxklim  =   int(klim*nx/np.pi/2.+0.5)
         nyklim  =   int(klim*ny/np.pi/2.+0.5)
         imgF[:ny//2-nyklim,:]    =    0.
-        imgF[ny//2+nyklim+1:,:]    =    0.
+        imgF[ny//2+nyklim+1:,:]  =    0.
         imgF[:,:nx//2-nxklim]    =    0.
-        imgF[:,nx//2+nxklim+1:]    =    0.
+        imgF[:,nx//2+nxklim+1:]  =    0.
     else:
         # no truncation in Fourier space
         pass
@@ -214,8 +212,8 @@ def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
     out     =   np.array(np.zeros(coords.size),dtype=_peak_types)
     for _j,_i in _default_inds:
         # the smoothed pixel value
-        _y  = coords['fpfs_peak_y']+_j-2
-        _x  = coords['fpfs_peak_x']+_i-2
+        _y  = coords['fpfs_y']+_j-2
+        _x  = coords['fpfs_x']+_i-2
         _v  = imgCov[_y,_x]
         out['fpfs_f%d%d' %(_j,_i)]=_v
         # responses for the smoothed pixel value
@@ -223,8 +221,8 @@ def _make_peak_array(coords,imgCov,imgCovQ1,imgCovQ2,imgCovD1,imgCovD2):
         _r2 = imgCovQ2[_y,_x]+(_j-2.)*imgCovD1[_y,_x]+(_i-2.)*imgCovD2[_y,_x]
         out['fpfs_f%d%dr1' %(_j,_i)]=_r1
         out['fpfs_f%d%dr2' %(_j,_i)]=_r2
-    out['fpfs_peak_x']=coords['fpfs_peak_x']
-    out['fpfs_peak_y']=coords['fpfs_peak_y']
+    out['fpfs_x']=coords['fpfs_x']
+    out['fpfs_y']=coords['fpfs_y']
     return out
 
 def peak2det(peaks):
@@ -285,6 +283,6 @@ def peak2det(peaks):
                 out[onm3] = peaks[inm3]
                 out[onm4] = peaks[inm4]
             del inm1,onm1,inm2,onm2,inm3,onm3,inm4,onm4
-    out['fpfs_peak_x']= peaks['fpfs_peak_x']
-    out['fpfs_peak_y']= peaks['fpfs_peak_y']
+    out['fpfs_x']= peaks['fpfs_x']
+    out['fpfs_y']= peaks['fpfs_y']
     return out

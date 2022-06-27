@@ -23,7 +23,6 @@
 # python lib
 import os
 import gc
-import pdet
 import fpfs
 import numpy as np
 import astropy.io.fits as pyfits
@@ -43,7 +42,7 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 class processBasicDriverConfig(pexConfig.Config):
     doHSM   = pexConfig.Field(
         dtype=bool,
-        default=False,
+        default=True,
         doc="Whether run HSM",
     )
     doFPFS  = pexConfig.Field(
@@ -62,9 +61,10 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     noiName     = pexConfig.Field(
         dtype=str,
-        # default="var1em9",
+        default="var1em9",
         # default="var0em0",
-        default="var4em3",
+        # default="var4em3",
+        # default="var7em3",
         doc="noise variance name"
     )
     inDir       = pexConfig.Field(
@@ -83,10 +83,10 @@ class processBasicDriverConfig(pexConfig.Config):
         self.readDataSim.doWrite=   False
         self.readDataSim.doDeblend= True
         self.readDataSim.doAddFP=   False
-        tname   =   'try4'
+        tname   =   'try2'
         psfFWHM =   self.galDir.split('_psf')[-1]
         gnm     =   self.galDir.split('galaxy_')[-1].split('_psf')[0]
-        self.outDir  =  os.path.join(self.outDir,'srcfs2_%s-%s_%s' %(gnm,self.noiName,tname),'psf%s'%(psfFWHM))
+        self.outDir  =  os.path.join(self.outDir,'srcfs3_%s-%s_%s' %(gnm,self.noiName,tname),'psf%s'%(psfFWHM))
         self.galDir  =  os.path.join(self.inDir,self.galDir)
 
     def validate(self):
@@ -140,7 +140,6 @@ class processBasicDriverTask(BatchPoolTask):
 
     @timeMethod
     def process(self,cache,nid):
-
         # necessary directories
         nn          =   100
         ngrid       =   64
@@ -151,10 +150,9 @@ class processBasicDriverTask(BatchPoolTask):
         #psfFWHMF    =   eval(psfFWHM)/100.
 
         # FPFS Basic
-        # gsigma    =   6.*2.*np.pi/64. # try1 --- this is very unstable
-        # gsigma    =   3.*2.*np.pi/64. # try2
-        # beta      =   0.75# try3
-        beta        =   0.50# try4
+        # beta        =   0.4# try1
+        beta        =   0.50# try2
+        # beta        =   0.75# try3
         rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
@@ -249,23 +247,23 @@ class processBasicDriverTask(BatchPoolTask):
                     indX    =   np.arange(32,ngrid2,64)
                     indY    =   np.arange(32,ngrid2,64)
                     inds    =   np.meshgrid(indY,indX,indexing='ij')
-                    coords  =   np.array(np.zeros(inds[0].size),dtype=[('fpfs_peak_y','i4'),('fpfs_peak_x','i4')])
-                    coords['fpfs_peak_y']=   np.ravel(inds[0])
-                    coords['fpfs_peak_x']=   np.ravel(inds[1])
+                    coords  =   np.array(np.zeros(inds[0].size),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
+                    coords['fpfs_y']=   np.ravel(inds[0])
+                    coords['fpfs_x']=   np.ravel(inds[1])
                     del indX,indY,inds
                 else:
-                    coords  =   None
-                thres   =   max(np.sqrt(noiVar)*2.5,0.05)
-                out1    =   pdet.get_shear_response_rfft(galData,psfData3,gsigma=fpTask.sigmaF,\
-                            thres=thres,thres2=-0.004,klim=fpTask.klim,coords=coords)
+                    thres   =   max(min(np.sqrt(noiVar)*2.,0.1),0.01)
+                    thres2  =   max(-0.05*np.sqrt(noiVar),-0.004)
+                    coords  =   fpfs.base.detect_sources(galData,psfData3,gsigma=fpTask.sigmaF,\
+                                thres=thres,thres2=thres2,klim=fpTask.klim)
                 gc.collect()
-                self.log.info('number of sources: %d' %len(out1))
-                imgList =   [galData[cc['fpfs_peak_y']-rcut:cc['fpfs_peak_y']+rcut,\
-                            cc['fpfs_peak_x']-rcut:cc['fpfs_peak_x']+rcut] for cc in out1]
+                self.log.info('number of sources: %d' %len(coords))
+                imgList =   [galData[cc['fpfs_y']-rcut:cc['fpfs_y']+rcut,\
+                            cc['fpfs_x']-rcut:cc['fpfs_x']+rcut] for cc in coords]
                 out     =   fpTask.measure(imgList)
-                out     =   rfn.merge_arrays([out,out1],flatten=True,usemask=False)
+                out     =   rfn.merge_arrays([coords,out],flatten=True,usemask=False)
                 pyfits.writeto(outFname,out)
-                del imgList,out,out1
+                del imgList,out,coords
                 gc.collect()
             else:
                 self.log.info('Skip FPFS measurement: %04d, %s' %(nid,ishear))
