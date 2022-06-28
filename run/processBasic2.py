@@ -42,7 +42,7 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 class processBasicDriverConfig(pexConfig.Config):
     doHSM   = pexConfig.Field(
         dtype=bool,
-        default=True,
+        default=False,
         doc="Whether run HSM",
     )
     doFPFS  = pexConfig.Field(
@@ -129,7 +129,7 @@ class processBasicDriverTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("processBasic")
         pool.cacheClear()
-        perBatch=   200
+        perBatch=   110
         pool.storeSet(doHSM=self.config.doHSM)
         pool.storeSet(doFPFS=self.config.doFPFS)
         pool.storeSet(galDir=self.config.galDir)
@@ -147,7 +147,7 @@ class processBasicDriverTask(BatchPoolTask):
         pixScale    =   0.168
         galDir      =   cache.galDir
         psfFWHM     =   galDir.split('_psf')[-1]
-        #psfFWHMF    =   eval(psfFWHM)/100.
+        # psfFWHMF    =   eval(psfFWHM)/100.
 
         # FPFS Basic
         # beta        =   0.4# try1
@@ -170,10 +170,10 @@ class processBasicDriverTask(BatchPoolTask):
             gid  =   0
         elif 'basic1' in galDir:
             # for COSMOS galaxies, 4 noise realizations share one galaxy
-            self.log.info('Using cosmosis parametric galaxies v1.')
+            self.log.info('Using cosmos parametric galaxies v1.')
             gid  =   nid//4
         elif 'basic2' in galDir:
-            self.log.info('Using cosmosis parametric galaxies v2.')
+            self.log.info('Using cosmos parametric galaxies v2.')
             gid  =  nid
         else:
             raise ValueError("galDir should cantain either 'small', 'star' or basic1/2")
@@ -205,15 +205,15 @@ class processBasicDriverTask(BatchPoolTask):
             powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
             powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
             powModel[0] =   powIn
-            fpTask      =   fpfs.base.fpfsTask(psfData2,noiFit=powModel[0],beta=beta)
+            measTask    =   fpfs.image.measure_source(psfData2,noiFit=powModel[0],beta=beta)
         else:
             noiVar      =   1e-20
             self.log.info('We are using noiseless setup')
             # by default noiFit=None
-            fpTask      =   fpfs.base.fpfsTask(psfData2,beta=beta)
+            measTask    =   fpfs.image.measure_source(psfData2,beta=beta)
             noiData     =   None
-        # self.log.info('%s' %(fpTask.klim/fpTask._dk))
-        # self.log.info('%s' %fpTask.sigmaF)
+        # self.log.info('%s' %(measTask.klim/measTask._dk))
+        # self.log.info('%s' %measTask.sigmaF)
         # isList        =   ['g1-0000','g2-0000','g1-2222','g2-2222']
         # isList        =   ['g1-1111']
         isList          =   ['g1-0000','g1-2222']
@@ -254,13 +254,13 @@ class processBasicDriverTask(BatchPoolTask):
                 else:
                     thres   =   max(min(np.sqrt(noiVar)*2.,0.1),0.01)
                     thres2  =   max(-0.05*np.sqrt(noiVar),-0.004)
-                    coords  =   fpfs.base.detect_sources(galData,psfData3,gsigma=fpTask.sigmaF,\
-                                thres=thres,thres2=thres2,klim=fpTask.klim)
+                    coords  =   fpfs.base.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
+                                thres=thres,thres2=thres2,klim=measTask.klim)
                 gc.collect()
                 self.log.info('number of sources: %d' %len(coords))
                 imgList =   [galData[cc['fpfs_y']-rcut:cc['fpfs_y']+rcut,\
                             cc['fpfs_x']-rcut:cc['fpfs_x']+rcut] for cc in coords]
-                out     =   fpTask.measure(imgList)
+                out     =   measTask.measure(imgList)
                 out     =   rfn.merge_arrays([coords,out],flatten=True,usemask=False)
                 pyfits.writeto(outFname,out)
                 del imgList,out,coords
