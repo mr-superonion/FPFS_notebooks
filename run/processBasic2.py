@@ -56,15 +56,16 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     galDir      = pexConfig.Field(
         dtype=str,
-        default="galaxy_basic2Center_psf60",#"small2_psf60",
+        default="galaxy_basic2Shift_psf60",#"small2_psf60",
+        # default="galaxy_basic2Center_psf60",
         doc="Input galaxy directory"
     )
     noiName     = pexConfig.Field(
         dtype=str,
-        default="var1em9",
+        # default="var1em9",
         # default="var0em0",
         # default="var4em3",
-        # default="var7em3",
+        default="var7em3",
         doc="noise variance name"
     )
     inDir       = pexConfig.Field(
