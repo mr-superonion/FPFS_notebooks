@@ -255,7 +255,7 @@ class processBasicDriverTask(BatchPoolTask):
                 else:
                     thres   =   max(min(np.sqrt(noiVar)*2.,0.1),0.01)
                     thres2  =   max(-0.05*np.sqrt(noiVar),-0.004)
-                    coords  =   fpfs.base.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
+                    coords  =   fpfs.image.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
                                 thres=thres,thres2=thres2,klim=measTask.klim)
                 gc.collect()
                 self.log.info('number of sources: %d' %len(coords))
