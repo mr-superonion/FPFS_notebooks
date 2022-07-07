@@ -56,16 +56,19 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     galDir      = pexConfig.Field(
         dtype=str,
-        default="galaxy_basic2Shift_psf60",#"small2_psf60",
+        # default="galaxy_cosmo170_psf60",
+        default="galaxy_test_cosmo085_psf60",
+        # default="galaxy_basic2Shift_psf60",
         # default="galaxy_basic2Center_psf60",
+        # default="small2_psf60",
         doc="Input galaxy directory"
     )
     noiName     = pexConfig.Field(
         dtype=str,
         # default="var1em9",
-        # default="var0em0",
+        default="var0em0",
         # default="var4em3",
-        default="var7em3",
+        # default="var7em3",
         doc="noise variance name"
     )
     inDir       = pexConfig.Field(
@@ -142,9 +145,7 @@ class processBasicDriverTask(BatchPoolTask):
     @timeMethod
     def process(self,cache,nid):
         # necessary directories
-        nn          =   100
         ngrid       =   64
-        ngrid2      =   ngrid*nn
         pixScale    =   0.168
         galDir      =   cache.galDir
         psfFWHM     =   galDir.split('_psf')[-1]
@@ -164,20 +165,28 @@ class processBasicDriverTask(BatchPoolTask):
                 gid  =   nid//8
             else:
                 gid  =   nid
+            gbegin=0;gend=6400
+            ngrid2      =   6400
         elif 'star' in galDir:
             self.log.info('Using stars')
             if "var0em0" not in cache.outDir:
                 raise ValueError("stars do not support noiseless simulations")
             gid  =   0
-        elif 'basic1' in galDir:
-            # for COSMOS galaxies, 4 noise realizations share one galaxy
-            self.log.info('Using cosmos parametric galaxies v1.')
-            gid  =   nid//4
-        elif 'basic2' in galDir:
-            self.log.info('Using cosmos parametric galaxies v2.')
+            gbegin=0;gend=6400
+            ngrid2  =   6400
+        elif 'basic' in galDir:
+            self.log.info('Using cosmos parametric galaxies to simulate the isolated case.')
             gid  =  nid
+            gbegin=0;gend=6400
+            ngrid2  =   6400
+        elif 'cosmo' in galDir:
+            # for COSMOS galaxies, 4 noise realizations share one galaxy
+            self.log.info('Using cosmos parametric galaxies to simulate the blended case.')
+            gid  =   nid
+            gbegin=700;gend=5700
+            ngrid2  =   5000
         else:
-            raise ValueError("galDir should cantain either 'small', 'star' or basic1/2")
+            raise ValueError("galDir should cantain either 'small', 'star', 'basic' or 'cosmo'")
         self.log.info('running for galaxy field: %s, noise field: %s' %(gid,nid))
 
         # PSF
@@ -226,7 +235,7 @@ class processBasicDriverTask(BatchPoolTask):
                 return
             galData     =   pyfits.getdata(galFname)
             if noiData is not None:
-                galData =   galData+noiData
+                galData =   galData+noiData[gbegin:gend,gbegin:gend]
 
             outFname    =   os.path.join(cache.outDir,'src-%04d-%s.fits' %(nid,ishear))
             if not os.path.exists(outFname) and cache.doHSM:
@@ -253,8 +262,8 @@ class processBasicDriverTask(BatchPoolTask):
                     coords['fpfs_x']=   np.ravel(inds[1])
                     del indX,indY,inds
                 else:
-                    thres   =   max(min(np.sqrt(noiVar)*2.,0.1),0.01)
-                    thres2  =   max(-0.05*np.sqrt(noiVar),-0.004)
+                    thres   =   max(min(np.sqrt(noiVar)*2.,0.1),0.05)
+                    thres2  =   -0.005
                     coords  =   fpfs.image.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
                                 thres=thres,thres2=thres2,klim=measTask.klim)
                 gc.collect()
