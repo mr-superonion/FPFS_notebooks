@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # Copyright 20220312 Xiangchong Li.
+# This task measure the two point correlation function for real space
+# cosmic shear from mocks
 import os
 import sys
 import fpfs
@@ -7,7 +9,6 @@ import fitsio
 import argparse
 import numpy as np
 from schwimmbad import MPIPool
-from default import *
 
 def do_process(ref):
     noirev =True
@@ -29,9 +30,9 @@ def do_process(ref):
     fs1=fpfs.catalog.summary_stats(mm1,ellM1,use_sig)
     fs2=fpfs.catalog.summary_stats(mm2,ellM2,use_sig)
     selnm=['detect','R2','M00']
-    dcc=0.1
-    cutB=-0.2
-    cutsig=[sigP,sigR,sigM]
+    dcc=-0.6
+    cutB=27.
+    cutsig=[0.2,0.5,1.]
     ncut=8
 
     #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
@@ -40,13 +41,13 @@ def do_process(ref):
         # clean outcome
         fs1.clear_outcomes()
         fs2.clear_outcomes()
-        rcut=cutB+dcc*i
-        cut=[0.06,rcut,10**((27.-25.5)/2.5)]
+        mcut=cutB+dcc*i
+        cut=[0.06,0.06,10**((27.-mcut)/2.5)]
         # weight array
         fs1.update_selection_weight(selnm,cut,cutsig);fs2.update_selection_weight(selnm,cut,cutsig)
         fs1.update_selection_bias(selnm,cut,cutsig);fs2.update_selection_bias(selnm,cut,cutsig)
         fs1.update_ellsum();fs2.update_ellsum()
-        out[0,i]= rcut
+        out[0,i]= mcut
         out[1,i]= fs2.sumE1-fs1.sumE1
         out[2,i]= (fs1.sumE1+fs2.sumE1)/2.
         out[3,i]= (fs1.sumE1+fs2.sumE1+fs1.corE1+fs2.corE1)/2.
@@ -69,7 +70,7 @@ def main():
     results=pool.map(do_process,refs)
     out =   np.stack(results)
     print(out.shape)
-    fitsio.write('detect_r2cut.fits',out)
+    fitsio.write('detect_magcut.fits',out)
     pool.close()
     return
 

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # Copyright 20220312 Xiangchong Li.
-# This task measure the two point correlation function for real space
-# cosmic shear from mocks
 import os
 import sys
 import fpfs
@@ -9,6 +7,7 @@ import fitsio
 import argparse
 import numpy as np
 from schwimmbad import MPIPool
+from default import *
 
 def do_process(ref):
     noirev =True
@@ -32,7 +31,7 @@ def do_process(ref):
     selnm=['detect','R2','M00']
     dcc=-0.6
     cutB=27.
-    cutsig=[0.2,0.5,1.]
+    cutsig=[sigP,sigR,sigM]
     ncut=8
 
     #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]

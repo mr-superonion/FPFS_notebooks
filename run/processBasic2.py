@@ -57,8 +57,9 @@ class processBasicDriverConfig(pexConfig.Config):
     galDir      = pexConfig.Field(
         dtype=str,
         # default="galaxy_cosmo170_psf60",
-        default="galaxy_test_cosmo085_psf60",
-        # default="galaxy_basic2Shift_psf60",
+        # default="galaxy_unif_cosmo170_psf60",
+        default="galaxy_unif_cosmo085_psf60",
+        # default="galaxy_basic2Shif170_psf60",
         # default="galaxy_basic2Center_psf60",
         # default="small2_psf60",
         doc="Input galaxy directory"
@@ -66,9 +67,9 @@ class processBasicDriverConfig(pexConfig.Config):
     noiName     = pexConfig.Field(
         dtype=str,
         # default="var1em9",
-        default="var0em0",
+        # default="var0em0",
         # default="var4em3",
-        # default="var7em3",
+        default="var7em3",
         doc="noise variance name"
     )
     inDir       = pexConfig.Field(
@@ -155,7 +156,7 @@ class processBasicDriverTask(BatchPoolTask):
         # beta        =   0.4# try1
         beta        =   0.50# try2
         # beta        =   0.75# try3
-        rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
+        rcut        =   16
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
 
