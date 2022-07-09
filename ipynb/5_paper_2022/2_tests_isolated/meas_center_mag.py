@@ -12,7 +12,7 @@ from default import *
 def do_process(ref):
     noirev =True
     use_sig=False
-    Const=  12.
+    Const=  20.
     ver  =  'try2'
     gver =  'basic2'
     dver =  'cut16'
@@ -29,9 +29,9 @@ def do_process(ref):
     fs1=fpfs.catalog.summary_stats(mm1,ellM1,use_sig)
     fs2=fpfs.catalog.summary_stats(mm2,ellM2,use_sig)
     selnm=['M00']
-    dcc=-0.6
-    cutB=27.
-    cutsig=[rigM]
+    dcc=-0.5
+    cutB=26.
+    cutsig=[sigM]
     ncut=8
 
     #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]

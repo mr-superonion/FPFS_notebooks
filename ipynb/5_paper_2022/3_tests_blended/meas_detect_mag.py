@@ -14,24 +14,24 @@ def do_process(ref):
     use_sig=False
     Const=  20.
     ver  =  'try2'
-    gver =  'basic2'
+    gver =  'unif_cosmo085'
     dver =  'cut16'
     nver =  'var7em3'
     wrkDir= os.environ['homeWrk']
     simDir= os.path.join(wrkDir,'FPFS2/sim/')
     # read noiseless data
-    mm1  =  fitsio.read(os.path.join(simDir,'srcfs3_%sCenter-%s_%s/psf60/fpfs-%s-%04d-g1-0000.fits' %(gver,nver,ver,dver,ref)))
-    mm2  =  fitsio.read(os.path.join(simDir,'srcfs3_%sCenter-%s_%s/psf60/fpfs-%s-%04d-g1-2222.fits' %(gver,nver,ver,dver,ref)))
+    mm1  =  fitsio.read(os.path.join(simDir,'srcfs3_%s-%s_%s/psf60/fpfs-%s-%04d-g1-0000.fits' %(gver,nver,ver,dver,ref)))
+    mm2  =  fitsio.read(os.path.join(simDir,'srcfs3_%s-%s_%s/psf60/fpfs-%s-%04d-g1-2222.fits' %(gver,nver,ver,dver,ref)))
 
     ellM1  =fpfs.catalog.fpfsM2E(mm1,const=Const,noirev=noirev)
     ellM2  =fpfs.catalog.fpfsM2E(mm2,const=Const,noirev=noirev)
 
     fs1=fpfs.catalog.summary_stats(mm1,ellM1,use_sig)
     fs2=fpfs.catalog.summary_stats(mm2,ellM2,use_sig)
-    selnm=['R2']
-    dcc=0.1
-    cutB=-0.2
-    cutsig=[sigR]
+    selnm=['detect','R2','M00']
+    dcc=-0.5
+    cutB=26.
+    cutsig=[sigP,sigR,sigM]
     ncut=8
 
     #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
@@ -40,13 +40,13 @@ def do_process(ref):
         # clean outcome
         fs1.clear_outcomes()
         fs2.clear_outcomes()
-        rcut=   cutB+dcc*i
-        cut =   [rcut]
+        mcut=cutB+dcc*i
+        cut=[cutP,cutR,10**((27.-mcut)/2.5)]
         # weight array
         fs1.update_selection_weight(selnm,cut,cutsig);fs2.update_selection_weight(selnm,cut,cutsig)
         fs1.update_selection_bias(selnm,cut,cutsig);fs2.update_selection_bias(selnm,cut,cutsig)
         fs1.update_ellsum();fs2.update_ellsum()
-        out[0,i]= rcut
+        out[0,i]= mcut
         out[1,i]= fs2.sumE1-fs1.sumE1
         out[2,i]= (fs1.sumE1+fs2.sumE1)/2.
         out[3,i]= (fs1.sumE1+fs2.sumE1+fs1.corE1+fs2.corE1)/2.
@@ -69,7 +69,7 @@ def main():
     results=pool.map(do_process,refs)
     out =   np.stack(results)
     print(out.shape)
-    fitsio.write('center_r2cut.fits',out)
+    fitsio.write('detect_magcut.fits',out)
     pool.close()
     return
 

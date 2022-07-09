@@ -56,10 +56,9 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     galDir      = pexConfig.Field(
         dtype=str,
-        # default="galaxy_cosmo170_psf60",
         # default="galaxy_unif_cosmo170_psf60",
-        default="galaxy_unif_cosmo085_psf60",
-        # default="galaxy_basic2Shif170_psf60",
+        # default="galaxy_unif_cosmo085_psf60",
+        default="galaxy_basic2Shift_psf60",
         # default="galaxy_basic2Center_psf60",
         # default="small2_psf60",
         doc="Input galaxy directory"
@@ -153,12 +152,13 @@ class processBasicDriverTask(BatchPoolTask):
         # psfFWHMF    =   eval(psfFWHM)/100.
 
         # FPFS Basic
-        # beta        =   0.4# try1
+        # beta       =   0.4# try1
         beta        =   0.50# try2
-        # beta        =   0.75# try3
+        # beta       =   0.75# try3
         rcut        =   16
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
+        scale       =   0.168
 
         if 'small' in galDir:
             self.log.info('Using small galaxies')
@@ -213,7 +213,7 @@ class processBasicDriverTask(BatchPoolTask):
             # multiply by 10 since the noise has variance 0.01
             noiData     =   pyfits.open(noiFname)[0].data*10.*np.sqrt(noiVar)
             # Also times 100 for the noivar model
-            powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
+            powIn       =   np.load('corPre/noiPows3.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
             powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
             powModel[0] =   powIn
             measTask    =   fpfs.image.measure_source(psfData2,noiFit=powModel[0],beta=beta)
@@ -224,7 +224,7 @@ class processBasicDriverTask(BatchPoolTask):
             measTask    =   fpfs.image.measure_source(psfData2,beta=beta)
             noiData     =   None
         # self.log.info('%s' %(measTask.klim/measTask._dk))
-        # self.log.info('%s' %measTask.sigmaF)
+        self.log.info('%s' %measTask.sigmaF)
         # isList        =   ['g1-0000','g2-0000','g1-2222','g2-2222']
         # isList        =   ['g1-1111']
         isList          =   ['g1-0000','g1-2222']
@@ -263,8 +263,10 @@ class processBasicDriverTask(BatchPoolTask):
                     coords['fpfs_x']=   np.ravel(inds[1])
                     del indX,indY,inds
                 else:
-                    thres   =   max(min(np.sqrt(noiVar)*2.,0.1),0.05)
-                    thres2  =   -0.005
+                    magz        =   27.
+                    cutmag      =   26.
+                    thres       =   10**((magz-cutmag)/2.5)*scale**2.
+                    thres2      =   -thres/13.
                     coords  =   fpfs.image.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
                                 thres=thres,thres2=thres2,klim=measTask.klim)
                 gc.collect()

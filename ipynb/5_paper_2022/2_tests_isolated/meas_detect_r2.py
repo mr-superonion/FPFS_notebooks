@@ -12,7 +12,7 @@ from default import *
 def do_process(ref):
     noirev =True
     use_sig=False
-    Const=  12.
+    Const=  20.
     ver  =  'try2'
     gver =  'basic2'
     dver =  'cut16'
@@ -41,7 +41,7 @@ def do_process(ref):
         fs1.clear_outcomes()
         fs2.clear_outcomes()
         rcut=cutB+dcc*i
-        cut=[0.06,rcut,10**((27.-25.5)/2.5)]
+        cut=[cutP,rcut,10**((27.-cutM)/2.5)]
         # weight array
         fs1.update_selection_weight(selnm,cut,cutsig);fs2.update_selection_weight(selnm,cut,cutsig)
         fs1.update_selection_bias(selnm,cut,cutsig);fs2.update_selection_bias(selnm,cut,cutsig)

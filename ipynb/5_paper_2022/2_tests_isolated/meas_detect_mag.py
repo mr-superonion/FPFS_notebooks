@@ -12,7 +12,7 @@ from default import *
 def do_process(ref):
     noirev =True
     use_sig=False
-    Const=  12.
+    Const=  20.
     ver  =  'try2'
     gver =  'basic2'
     dver =  'cut16'
@@ -29,8 +29,8 @@ def do_process(ref):
     fs1=fpfs.catalog.summary_stats(mm1,ellM1,use_sig)
     fs2=fpfs.catalog.summary_stats(mm2,ellM2,use_sig)
     selnm=['detect','R2','M00']
-    dcc=-0.6
-    cutB=27.
+    dcc=-0.5
+    cutB=26.
     cutsig=[sigP,sigR,sigM]
     ncut=8
 
@@ -41,7 +41,7 @@ def do_process(ref):
         fs1.clear_outcomes()
         fs2.clear_outcomes()
         mcut=cutB+dcc*i
-        cut=[0.06,0.06,10**((27.-mcut)/2.5)]
+        cut=[cutP,cutR,10**((27.-mcut)/2.5)]
         # weight array
         fs1.update_selection_weight(selnm,cut,cutsig);fs2.update_selection_weight(selnm,cut,cutsig)
         fs1.update_selection_bias(selnm,cut,cutsig);fs2.update_selection_bias(selnm,cut,cutsig)

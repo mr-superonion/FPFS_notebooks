@@ -11,8 +11,6 @@ from default import *
 
 def do_process(ref):
     noirev =True
-    use_sig=False
-    Const=  20.
     ver  =  'try2'
     gver =  'basic2'
     dver =  'cut16'
@@ -22,36 +20,21 @@ def do_process(ref):
     # read noiseless data
     mm1  =  fitsio.read(os.path.join(simDir,'srcfs3_%sCenter-%s_%s/psf60/fpfs-%s-%04d-g1-0000.fits' %(gver,nver,ver,dver,ref)))
     mm2  =  fitsio.read(os.path.join(simDir,'srcfs3_%sCenter-%s_%s/psf60/fpfs-%s-%04d-g1-2222.fits' %(gver,nver,ver,dver,ref)))
-
-    ellM1  =fpfs.catalog.fpfsM2E(mm1,const=Const,noirev=noirev)
-    ellM2  =fpfs.catalog.fpfsM2E(mm2,const=Const,noirev=noirev)
-
-    fs1=fpfs.catalog.summary_stats(mm1,ellM1,use_sig)
-    fs2=fpfs.catalog.summary_stats(mm2,ellM2,use_sig)
-    selnm=['R2']
-    dcc=0.1
-    cutB=-0.2
-    cutsig=[sigR]
-    ncut=8
-
-    #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
-    out=np.zeros((6,ncut))
-    for i in range(ncut):
-        # clean outcome
-        fs1.clear_outcomes()
-        fs2.clear_outcomes()
-        rcut=   cutB+dcc*i
-        cut =   [rcut]
-        # weight array
-        fs1.update_selection_weight(selnm,cut,cutsig);fs2.update_selection_weight(selnm,cut,cutsig)
-        fs1.update_selection_bias(selnm,cut,cutsig);fs2.update_selection_bias(selnm,cut,cutsig)
-        fs1.update_ellsum();fs2.update_ellsum()
-        out[0,i]= rcut
-        out[1,i]= fs2.sumE1-fs1.sumE1
-        out[2,i]= (fs1.sumE1+fs2.sumE1)/2.
-        out[3,i]= (fs1.sumE1+fs2.sumE1+fs1.corE1+fs2.corE1)/2.
-        out[4,i]= (fs1.sumR1+fs2.sumR1)/2.
-        out[5,i]= (fs1.sumR1+fs2.sumR1+fs1.corR1+fs2.corR1)/2.
+    ntest=20
+    clist=np.logspace(-1,2,ntest)
+    out=np.zeros((4,ntest))
+    for i in range(ntest):
+        Const=  clist[i]
+        ellM1  =    fpfs.catalog.fpfsM2E(mm1,const=Const,noirev=noirev)
+        ellM2  =    fpfs.catalog.fpfsM2E(mm2,const=Const,noirev=noirev)
+        e1sum1 =    np.sum(ellM1['fpfs_e1'])
+        e1sum2 =    np.sum(ellM2['fpfs_e1'])
+        R1sum1 =    np.sum(ellM1['fpfs_R1E'])
+        R1sum2 =    np.sum(ellM2['fpfs_R1E'])
+        out[0,i]=   Const
+        out[1,i]=   e1sum2-e1sum1
+        out[2,i]=   (e1sum1+e1sum2)/2.
+        out[3,i]=   (R1sum1+R1sum2)/2.
     return out
 
 def main():
@@ -68,8 +51,7 @@ def main():
         sys.exit(0)
     results=pool.map(do_process,refs)
     out =   np.stack(results)
-    print(out.shape)
-    fitsio.write('center_r2cut.fits',out)
+    fitsio.write('center_constC.fits',out)
     pool.close()
     return
 
