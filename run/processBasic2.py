@@ -57,8 +57,8 @@ class processBasicDriverConfig(pexConfig.Config):
     galDir      = pexConfig.Field(
         dtype=str,
         # default="galaxy_unif_cosmo170_psf60",
-        # default="galaxy_unif_cosmo085_psf60",
-        default="galaxy_basic2Shift_psf60",
+        default="galaxy_unif_cosmo085_psf60",
+        # default="galaxy_basic2Shift_psf60",
         # default="galaxy_basic2Center_psf60",
         # default="small2_psf60",
         doc="Input galaxy directory"
@@ -133,7 +133,7 @@ class processBasicDriverTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("processBasic")
         pool.cacheClear()
-        perBatch=   110
+        perBatch=   100
         pool.storeSet(doHSM=self.config.doHSM)
         pool.storeSet(doFPFS=self.config.doFPFS)
         pool.storeSet(galDir=self.config.galDir)
@@ -152,10 +152,10 @@ class processBasicDriverTask(BatchPoolTask):
         # psfFWHMF    =   eval(psfFWHM)/100.
 
         # FPFS Basic
-        # beta       =   0.4# try1
+        # beta      =   0.4# try1
         beta        =   0.50# try2
-        # beta       =   0.75# try3
-        rcut        =   16
+        # beta      =   0.75# try3
+        rcut        =   32
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
         scale       =   0.168
@@ -177,13 +177,13 @@ class processBasicDriverTask(BatchPoolTask):
             ngrid2  =   6400
         elif 'basic' in galDir:
             self.log.info('Using cosmos parametric galaxies to simulate the isolated case.')
-            gid  =  nid
+            gid  =  nid%1024
             gbegin=0;gend=6400
             ngrid2  =   6400
         elif 'cosmo' in galDir:
             # for COSMOS galaxies, 4 noise realizations share one galaxy
             self.log.info('Using cosmos parametric galaxies to simulate the blended case.')
-            gid  =   nid
+            gid  =   nid%1024
             gbegin=700;gend=5700
             ngrid2  =   5000
         else:

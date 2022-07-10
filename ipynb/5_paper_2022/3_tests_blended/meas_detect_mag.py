@@ -3,7 +3,7 @@
 import os
 import sys
 import fpfs
-import fitsio
+import astropy.io.fits as pyfits
 import argparse
 import numpy as np
 from schwimmbad import MPIPool
@@ -20,8 +20,8 @@ def do_process(ref):
     wrkDir= os.environ['homeWrk']
     simDir= os.path.join(wrkDir,'FPFS2/sim/')
     # read noiseless data
-    mm1  =  fitsio.read(os.path.join(simDir,'srcfs3_%s-%s_%s/psf60/fpfs-%s-%04d-g1-0000.fits' %(gver,nver,ver,dver,ref)))
-    mm2  =  fitsio.read(os.path.join(simDir,'srcfs3_%s-%s_%s/psf60/fpfs-%s-%04d-g1-2222.fits' %(gver,nver,ver,dver,ref)))
+    mm1  =  pyfits.getdata(os.path.join(simDir,'srcfs3_%s-%s_%s/psf60/fpfs-%s-%04d-g1-0000.fits' %(gver,nver,ver,dver,ref)))
+    mm2  =  pyfits.getdata(os.path.join(simDir,'srcfs3_%s-%s_%s/psf60/fpfs-%s-%04d-g1-2222.fits' %(gver,nver,ver,dver,ref)))
 
     ellM1  =fpfs.catalog.fpfsM2E(mm1,const=Const,noirev=noirev)
     ellM2  =fpfs.catalog.fpfsM2E(mm2,const=Const,noirev=noirev)
@@ -69,7 +69,7 @@ def main():
     results=pool.map(do_process,refs)
     out =   np.stack(results)
     print(out.shape)
-    fitsio.write('detect_magcut.fits',out)
+    pyfits.writeto('detect_magcut.fits',out,clobber=True)
     pool.close()
     return
 
