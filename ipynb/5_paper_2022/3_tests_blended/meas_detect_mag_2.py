@@ -15,7 +15,7 @@ def do_process(ref):
     Const=  20.
     ver  =  'try2'
     gver =  'unif_cosmo170'
-    dver =  'cut16'
+    dver =  'cut32'
     nver =  'var7em3'
     wrkDir= os.environ['homeWrk']
     simDir= os.path.join(wrkDir,'FPFS2/sim/')
@@ -69,7 +69,7 @@ def main():
     results=pool.map(do_process,refs)
     out =   np.stack(results)
     print(out.shape)
-    pyfits.writeto('detect_magcut_2.fits',out,clobber=True)
+    pyfits.writeto('detect_magcut_2.fits',out,overwrite=True)
     pool.close()
     return
 
