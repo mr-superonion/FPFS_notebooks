@@ -15,13 +15,13 @@ def do_process(ref):
     Const=  20.
     ver  =  'try2'
     gver =  'basic3'
-    dver =  'cut32'
+    dver =  'cut16'
     nver =  'var7em3'
     wrkDir= os.environ['homeWrk']
     simDir= os.path.join(wrkDir,'FPFS2/sim/')
     # read noiseless data
-    mm1  =  fitsio.read(os.path.join(simDir,'srcfs3_%sCenter-%s_%s/psf60/fpfs-%s-%04d-g1-0000.fits' %(gver,nver,ver,dver,ref)))
-    mm2  =  fitsio.read(os.path.join(simDir,'srcfs3_%sCenter-%s_%s/psf60/fpfs-%s-%04d-g1-2222.fits' %(gver,nver,ver,dver,ref)))
+    mm1  =  fitsio.read(os.path.join(simDir,'srcfs3_%sShift-%s_%s/psf60/fpfs-%s-%04d-g1-0000.fits' %(gver,nver,ver,dver,ref)))
+    mm2  =  fitsio.read(os.path.join(simDir,'srcfs3_%sShift-%s_%s/psf60/fpfs-%s-%04d-g1-2222.fits' %(gver,nver,ver,dver,ref)))
 
     ellM1  =fpfs.catalog.fpfsM2E(mm1,const=Const,noirev=noirev)
     ellM2  =fpfs.catalog.fpfsM2E(mm2,const=Const,noirev=noirev)

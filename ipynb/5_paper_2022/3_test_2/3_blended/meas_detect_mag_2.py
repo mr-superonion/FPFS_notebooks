@@ -14,7 +14,7 @@ def do_process(ref):
     use_sig=False
     Const=  20.
     ver  =  'try2'
-    gver =  'unif_cosmo170'
+    gver =  'unif2_cosmo170'
     dver =  'cut32'
     nver =  'var7em3'
     wrkDir= os.environ['homeWrk']

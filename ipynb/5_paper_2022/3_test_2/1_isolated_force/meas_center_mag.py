@@ -28,10 +28,10 @@ def do_process(ref):
 
     fs1=fpfs.catalog.summary_stats(mm1,ellM1,use_sig)
     fs2=fpfs.catalog.summary_stats(mm2,ellM2,use_sig)
-    selnm=['M00']
+    selnm=['M00','R2_upp']
     dcc=-0.5
     cutB=26.
-    cutsig=[sigM]
+    cutsig=[sigM,sigR]
     ncut=8
 
     #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
@@ -41,7 +41,7 @@ def do_process(ref):
         fs1.clear_outcomes()
         fs2.clear_outcomes()
         mcut=   cutB+dcc*i
-        cut =   [10.**((27.-mcut)/2.5)]
+        cut =   [10.**((27.-mcut)/2.5),0.8]
         # weight array
         fs1.update_selection_weight(selnm,cut,cutsig);fs2.update_selection_weight(selnm,cut,cutsig)
         fs1.update_selection_bias(selnm,cut,cutsig);fs2.update_selection_bias(selnm,cut,cutsig)

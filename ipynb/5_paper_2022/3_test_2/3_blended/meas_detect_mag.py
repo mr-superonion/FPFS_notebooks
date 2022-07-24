@@ -14,7 +14,7 @@ def do_process(ref):
     use_sig=False
     Const=  20.
     ver  =  'try2'
-    gver =  'unif_cosmo085'
+    gver =  'unif2_cosmo085'
     dver =  'cut32'
     nver =  'var7em3'
     wrkDir= os.environ['homeWrk']
@@ -59,7 +59,7 @@ def main():
     parser.add_argument('--minId', required=True,type=int,
                         help='minimum id number, e.g. 0')
     parser.add_argument('--maxId', required=True,type=int,
-                        help='maximum id number, e.g. 1024')
+                        help='maximum id number, e.g. 4000')
     args = parser.parse_args()
     refs    =   list(range(args.minId,args.maxId))
     pool = MPIPool()
