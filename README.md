@@ -1,3 +1,3 @@
-#sdet
+# FPFS notebooks
 
-A repository for shear response of detection
+A repository for notebooks used for FPFS paper publications
